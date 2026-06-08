@@ -157,6 +157,14 @@ process.stdin.on('end', () => {
       modelLabel = matchedTier.tier + ' → ' + shortModel;
     }
 
+    // ---- effort level ----
+    var effortLevel = info.effort && info.effort.level || '';
+    var effortStr = '';
+    if (effortLevel) {
+      var ec = effortLevel === 'max' ? 31 : effortLevel === 'high' ? 33 : 32;
+      effortStr = ' \x1b[' + ec + 'm⚡' + effortLevel + '\x1b[0m';
+    }
+
     // ---- pricing ----
     let p = PRICING['deepseek-v4-flash'];
     for (var k in PRICING) {
@@ -219,8 +227,6 @@ process.stdin.on('end', () => {
     // ---- cache hit rates ----
     const totalInput = sess.in + sess.cache;
     var sessionCacheRate = totalInput > 0 ? Math.round(sess.cache / totalInput * 100) : 0;
-    var turnCacheRate = tIn > 0 ? Math.round(tCache / tIn * 100) : 0;
-
     // ---- total lifetime spending across all cached sessions ----
     let lifeCost = 0;
     for (var k3 in cache.sessions) {
@@ -274,7 +280,7 @@ process.stdin.on('end', () => {
       line1Parts.push('\x1b[96m' + dirShort + '\x1b[0m');
     }
 
-    line1Parts.push('\x1b[1;37m\u{1F916} ' + modelLabel + '\x1b[0m');
+    line1Parts.push('\x1b[1;37m\u{1F916} ' + modelLabel + '\x1b[0m' + effortStr);
 
     if (balanceStr) {
       line1Parts.push('\x1b[93m\u{1F4B3} ' + balanceStr + '\x1b[0m');
@@ -322,10 +328,7 @@ process.stdin.on('end', () => {
       line2Parts.push('\x1b[90m\u{1F4AC} ' + turns + '\x1b[0m');
     }
 
-    // turn cache rate (when different from session rate)
-    if (turnCacheRate > 0 && turnCacheRate !== sessionCacheRate) {
-      line2Parts.push('\x1b[90m\u{1F4C8}' + turnCacheRate + '%\x1b[0m');
-    }
+    // (turn cache rate removed - unreliable due to stdin interim states)
 
     // total lifetime (if more than session)
     if (lifeCost > 0) {
