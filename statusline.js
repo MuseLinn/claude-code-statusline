@@ -216,6 +216,11 @@ process.stdin.on('end', () => {
 
     const cost = (sess.in * p.input + sess.cache * p.cached + sess.out * p.output) / 1000000;
 
+    // ---- cache hit rates ----
+    const totalInput = sess.in + sess.cache;
+    var sessionCacheRate = totalInput > 0 ? Math.round(sess.cache / totalInput * 100) : 0;
+    var turnCacheRate = tIn > 0 ? Math.round(tCache / tIn * 100) : 0;
+
     // ---- total lifetime spending across all cached sessions ----
     let lifeCost = 0;
     for (var k3 in cache.sessions) {
@@ -280,8 +285,9 @@ process.stdin.on('end', () => {
     }
 
     let line1 = line1Parts.join(' · ');
-    if (line1.length > cols) {
-      line1 = line1.slice(0, cols - 1);
+    var line1Vis = line1.replace(/\x1b\[[0-9;]*m/g, '');
+    if (line1Vis.length > cols) {
+      line1 = line1.slice(0, cols + line1.length - line1Vis.length - 3) + '...';
     }
 
     // ===================================================================
@@ -297,8 +303,9 @@ process.stdin.on('end', () => {
     }
     line2Parts.push(barStr);
 
-    // down 13.3K box 5.7M up 11.7K
-    line2Parts.push('\x1b[96m⬇ ' + fmt(sess.in) + '\x1b[0m \x1b[93m\u{1F4E6}' + fmt(sess.cache) + '\x1b[0m \x1b[95m⬆ ' + fmt(sess.out) + '\x1b[0m');
+    // down 13.3K box 5.7M(76%) up 11.7K
+    var cacheHitStr = sessionCacheRate > 0 ? ' (' + sessionCacheRate + '%)' : '';
+    line2Parts.push('\x1b[96m⬇ ' + fmt(sess.in) + '\x1b[0m \x1b[93m\u{1F4E6}' + fmt(sess.cache) + cacheHitStr + '\x1b[0m \x1b[95m⬆ ' + fmt(sess.out) + '\x1b[0m');
 
     // session cost
     line2Parts.push('\x1b[33m\u{1F4B0} ¥' + costStr(cost) + '\x1b[0m');
@@ -315,14 +322,20 @@ process.stdin.on('end', () => {
       line2Parts.push('\x1b[90m\u{1F4AC} ' + turns + '\x1b[0m');
     }
 
+    // turn cache rate (when different from session rate)
+    if (turnCacheRate > 0 && turnCacheRate !== sessionCacheRate) {
+      line2Parts.push('\x1b[90m\u{1F4C8}' + turnCacheRate + '%\x1b[0m');
+    }
+
     // total lifetime (if more than session)
     if (lifeCost > 0) {
       line2Parts.push('\x1b[96m\u{1F4CA} ¥' + costStr(lifeCost) + '\x1b[0m');
     }
 
     let line2 = line2Parts.join(' · ');
-    if (line2.length > cols) {
-      line2 = line2.slice(0, cols - 1);
+    var line2Vis = line2.replace(/\x1b\[[0-9;]*m/g, '');
+    if (line2Vis.length > cols) {
+      line2 = line2.slice(0, cols + line2.length - line2Vis.length - 3) + '...';
     }
 
     process.stdout.write('\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n');
