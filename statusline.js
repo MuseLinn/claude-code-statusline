@@ -233,21 +233,14 @@ process.stdin.on('end', () => {
     }
     writeCache(cache);
 
-    const cost = sess.paid || 0;
+    const sessionCost = sess.paid || 0;
+
+    // ---- per-turn cost (current API call) ----
+    var turnCost = (tIn * p.input + tCache * p.cached + tOut * p.output) / 1000000;
 
     // ---- cache hit rates ----
     const totalInput = sess.in + sess.cache;
     var sessionCacheRate = totalInput > 0 ? (sess.cache / totalInput * 100).toFixed(2) : '0.00';
-    // ---- total lifetime spending across all cached sessions ----
-    let lifeCost = 0;
-    for (var k3 in cache.sessions) {
-      if (cache.sessions.hasOwnProperty(k3)) {
-        var s = cache.sessions[k3];
-        if (s && typeof s.paid === 'number') {
-          lifeCost += s.paid;
-        }
-      }
-    }
 
     // ---- balance (persistent cache) ----
     const balanceStr = getBalance(env.ANTHROPIC_AUTH_TOKEN || '');
@@ -324,8 +317,8 @@ process.stdin.on('end', () => {
     var cacheHitStr = sessionCacheRate > 0 ? ' (' + sessionCacheRate + '%)' : '';
     line2Parts.push('\x1b[96m⬇ ' + fmt(sess.in) + '\x1b[0m \x1b[93m\u{1F4E6}' + fmt(sess.cache) + cacheHitStr + '\x1b[0m \x1b[95m⬆ ' + fmt(sess.out) + '\x1b[0m');
 
-    // session cost
-    line2Parts.push('\x1b[33m\u{1F4B0} ¥' + costStr(cost) + '\x1b[0m');
+    // per-turn cost
+    line2Parts.push('\x1b[33m\u{1F4B0} ¥' + costStr(turnCost) + '\x1b[0m');
 
     // compact warning
     if (remPct <= 20) {
@@ -341,9 +334,9 @@ process.stdin.on('end', () => {
 
     // (turn cache rate removed - unreliable due to stdin interim states)
 
-    // total lifetime (if more than session)
-    if (lifeCost > 0) {
-      line2Parts.push('\x1b[96m\u{1F4CA} ¥' + costStr(lifeCost) + '\x1b[0m');
+    // session total (this session's cumulative cost)
+    if (sessionCost > 0) {
+      line2Parts.push('\x1b[96m\u{1F4CA} ¥' + costStr(sessionCost) + '\x1b[0m');
     }
 
     let line2 = line2Parts.join(' │ ');
