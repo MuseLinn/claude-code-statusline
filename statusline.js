@@ -196,6 +196,7 @@ process.stdin.on('end', () => {
       sess.in = prevIn + tIn;
       sess.out = prevOut + tOut;
       sess.cache = prevCache + tCache;
+      sess.turns = (sess.turns || 0) + 1;
     } else if (outputOnlyChanged) {
       sess.out = prevOut + Math.max(0, tOut - (sess._lastOut || 0));
     }
@@ -301,6 +302,18 @@ process.stdin.on('end', () => {
 
     // session cost
     line2Parts.push('\x1b[33m\u{1F4B0} ¥' + costStr(cost) + '\x1b[0m');
+
+    // compact warning
+    if (remPct <= 20) {
+      var warnColor = remPct <= 10 ? 31 : 33;
+      line2Parts.push('\x1b[' + warnColor + 'm⚠ compact\x1b[0m');
+    }
+
+    // turn counter
+    var turns = sess.turns || 0;
+    if (turns > 0) {
+      line2Parts.push('\x1b[90m\u{1F4AC} ' + turns + '\x1b[0m');
+    }
 
     // total lifetime (if more than session)
     if (lifeCost > 0) {
