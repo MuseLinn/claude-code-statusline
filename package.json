@@ -1,0 +1,15 @@
+{
+  "name": "deepseek-statusline",
+  "version": "0.1.0",
+  "description": "DeepSeek optimised statusline for Claude Code — balance, cost, tokens, context monitoring",
+  "license": "MIT",
+  "author": "",
+  "type": "module",
+  "files": [
+    ".claude-plugin",
+    "commands",
+    "statusline.js",
+    "README.md",
+    "LICENSE"
+  ]
+}

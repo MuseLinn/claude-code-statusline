@@ -1,0 +1,6 @@
+{
+  "name": "deepseek-statusline",
+  "version": "0.1.0",
+  "description": "DeepSeek optimised statusline for Claude Code — shows balance, session cost, lifetime cost, context bar, tokens, cache, git status, and session duration",
+  "main": "commands/setup.ts"
+}
