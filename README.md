@@ -1,27 +1,31 @@
 # deepseek-statusline
 
 A [Claude Code](https://code.claude.com/) statusline plugin for DeepSeek models.  
-Shows account balance, session cost, lifetime spending, context progress, token usage, git status, and more — right in your Claude Code status bar.
+Shows balance, session cost, lifetime spending, cache hit rate, context progress, token usage, effort level, turns count, git status, and more.
+
+```
+windows-island │ 🤖 Sonnet → deepseek-v4-flash ⚡max │ 💳 ¥18.50 │ ⏱ 1h48m
+[██░░░░░░░░] 80% [1.0M] │ ⬇ 13.3K 📦5.7M (99.83%) ⬆ 11.7K │ 💰 ¥0.151 │ 💬 12 │ 📊 ¥2.50
+```
 
 ## Features
-
-```
-windows-island · 🤖 Sonnet → deepseek-v4-flash · 💳 ¥18.50 · ⏱ 1h48m
-[██░░░░░░░░] 80% [1.0M] · ⬇ 13.3K 📦5.7M ⬆ 11.7K · 💰 ¥0.151 · 📊 ¥2.50
-```
 
 | Section | Line | What it shows |
 |---------|------|---------------|
 | Git branch | 1 | `[main+2*]` — branch, untracked files, modified indicator |
-| Project dir | 1 | Last 2 path segments (dim) |
+| Project dir | 1 | Last 2 path segments |
 | Model | 1 | Claude tier → DeepSeek model name, e.g. `Sonnet → deepseek-v4-flash` |
+| ⚡ Effort | 1 | Mapped effort level: `high` (low/medium/high) or `max` (xhigh/max) |
 | 💳 Balance | 1 | DeepSeek account balance (cached 5 min) |
 | ⏱ Duration | 1 | Session elapsed time |
 | Context bar | 2 | `[████░░░░░░]` 10-segment progress bar, color-coded (green/yellow/red) |
 | Context size | 2 | API-reported context window size |
+| 🔄 Cache hit rate | 2 | `(99.83%)` — session cache hit rate with 2 decimal places |
 | Token counts | 2 | `⬇ input 📦cache ⬆ output` with K/M formatting |
-| 💰 Session cost | 2 | This session's cumulative cost (uncached tokens only) |
+| 💰 Session cost | 2 | This session's cumulative cost, model-safe (per-turn pricing) |
+| 💬 Turns | 2 | Conversation turn count |
 | 📊 Lifetime cost | 2 | Total spending across all sessions |
+| ⚠ Compact | 2 | Warning when context remaining ≤ 20% |
 
 ## Requirements
 
@@ -34,13 +38,8 @@ windows-island · 🤖 Sonnet → deepseek-v4-flash · 💳 ¥18.50 · ⏱ 1h48m
 ### Via plugin marketplace
 
 ```bash
-# Add the marketplace source
-claude plugin marketplace add <your-github-username>/deepseek-statusline
-
-# Install the plugin
+claude plugin marketplace add MuseLinn/deepseek-statusline
 claude plugin install deepseek-statusline
-
-# Run setup
 /deepseek-statusline:setup
 ```
 
@@ -49,15 +48,9 @@ Restart Claude Code.
 ### Manual installation
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/<your-github-username>/deepseek-statusline
+git clone https://github.com/MuseLinn/deepseek-statusline
 cd deepseek-statusline
-
-# 2. Copy the script
 cp statusline.js ~/.claude/statusline.js
-
-# 3. Add to settings.local.json
-# (merges with settings.json, survives cc switch)
 ```
 
 Add to `~/.claude/settings.local.json`:
@@ -73,8 +66,6 @@ Add to `~/.claude/settings.local.json`:
 
 ### Windows + Git Bash
 
-Use the full path to node.exe:
-
 ```json
 {
   "statusLine": {
@@ -88,13 +79,13 @@ Use the full path to node.exe:
 
 ### API Key
 
-The statusline reads your DeepSeek API key in this order:
+The statusline reads your DeepSeek API key in order:
 
 1. `DEEP_SEEK_API_KEY_FOR_BALANCE` environment variable
 2. `ANTHROPIC_AUTH_TOKEN` from `settings.json` env
 3. `ANTHROPIC_AUTH_TOKEN` environment variable
 
-For the cheapest DeepSeek setup, add to `~/.claude/settings.json`:
+Recommended `~/.claude/settings.json`:
 
 ```json
 {
@@ -113,31 +104,36 @@ For the cheapest DeepSeek setup, add to `~/.claude/settings.json`:
 }
 ```
 
-### Pricing
+### Effort level mapping
 
-Built-in pricing table (CNY per million tokens). Update `PRICING` in `statusline.js` as needed:
+| Claude level | Display |
+|-------------|---------|
+| low / medium / high | `⚡high` |
+| xhigh / max | `⚡max` |
+
+### Pricing (CNY per 1M tokens)
 
 | Model | Input | Cached | Output |
 |-------|-------|--------|--------|
 | deepseek-v4-flash | ¥1 | ¥0.02 | ¥2 |
 | deepseek-v4-pro | ¥3 | ¥0.025 | ¥6 |
 
-### Adding more models
-
-Edit the `PRICING` and `modelTierMap` sections in `statusline.js`.
+Edit `PRICING` in `statusline.js` to add more models.
 
 ## How it works
 
 1. Claude Code sends session JSON to the script via stdin every ~300ms
-2. The script parses model info, context window, and token usage
-3. Token costs are calculated using per-model pricing (uncached tokens only)
-4. Balance is fetched from DeepSeek API (`/user/balance`) and cached for 5 minutes
-5. Session state is persisted in `~/.claude/deepseek-cache.json`
-6. Old sessions (7+ days) are auto-cleaned
+2. Script parses model, context window, tokens, effort, and session info
+3. **Cost is per-turn incremental** — each turn calculated at current model pricing. Switching models mid-session won't reprice history.
+4. **Cache hit rate** displayed with 2 decimal places, calculated as `cache / (input + cache) × 100`
+5. **Migration-safe** — old cache without `paid` field auto-initializes from accumulated tokens
+6. Balance fetched from DeepSeek API (`/user/balance`), cached 5 minutes
+7. Session state persisted in `~/.claude/deepseek-cache.json`, auto-cleans after 7 days
 
-## Restoring previous statusline
+## Contributors
 
-A backup of your previous statusline (if any) is saved to `previous-statusline.txt` in the plugin directory.
+- [@MuseLinn](https://github.com/MuseLinn) — project maintainer
+- [@Claude](https://anthropic.com/) — AI pair programmer ([claude.ai](https://claude.ai))
 
 ## License
 
