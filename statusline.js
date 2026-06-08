@@ -237,7 +237,7 @@ process.stdin.on('end', () => {
 
     // ---- cache hit rates ----
     const totalInput = sess.in + sess.cache;
-    var sessionCacheRate = totalInput > 0 ? Math.round(sess.cache / totalInput * 100) : 0;
+    var sessionCacheRate = totalInput > 0 ? (sess.cache / totalInput * 100).toFixed(2) : '0.00';
     // ---- total lifetime spending across all cached sessions ----
     let lifeCost = 0;
     for (var k3 in cache.sessions) {
