@@ -192,9 +192,9 @@ process.stdin.on('end', () => {
     const tCache = cu.cache_read_input_tokens || 0;
     const tOut = cu.output_tokens || 0;
 
-    // ---- cumulative session cost (3-state dedup from Duroxi) ----
+    // ---- cumulative session cost (model-safe: store cost directly, not recalculate) ----
     const cache = readCache();
-    const sess = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
+    const sess = cache.sessions[sid] || { in: 0, out: 0, cache: 0, paid: 0 };
     const prevIn = sess.in || 0, prevOut = sess.out || 0, prevCache = sess.cache || 0;
 
     const hasLast = '_lastIn' in sess;
@@ -206,8 +206,13 @@ process.stdin.on('end', () => {
       sess.out = prevOut + tOut;
       sess.cache = prevCache + tCache;
       sess.turns = (sess.turns || 0) + 1;
+      // Add cost for this turn at current model's pricing
+      sess.paid = (sess.paid || 0) + (tIn * p.input + tCache * p.cached + tOut * p.output) / 1000000;
     } else if (outputOnlyChanged) {
-      sess.out = prevOut + Math.max(0, tOut - (sess._lastOut || 0));
+      var outDelta = Math.max(0, tOut - (sess._lastOut || 0));
+      sess.out = prevOut + outDelta;
+      // Add cost for new output tokens only
+      sess.paid = (sess.paid || 0) + (outDelta * p.output) / 1000000;
     }
 
     sess._lastIn = tIn; sess._lastOut = tOut; sess._lastCache = tCache;
@@ -223,7 +228,7 @@ process.stdin.on('end', () => {
     }
     writeCache(cache);
 
-    const cost = (sess.in * p.input + sess.cache * p.cached + sess.out * p.output) / 1000000;
+    const cost = sess.paid || 0;
 
     // ---- cache hit rates ----
     const totalInput = sess.in + sess.cache;
@@ -233,8 +238,8 @@ process.stdin.on('end', () => {
     for (var k3 in cache.sessions) {
       if (cache.sessions.hasOwnProperty(k3)) {
         var s = cache.sessions[k3];
-        if (s && typeof s.in === 'number') {
-          lifeCost += (s.in * p.input + s.cache * p.cached + s.out * p.output) / 1000000;
+        if (s && typeof s.paid === 'number') {
+          lifeCost += s.paid;
         }
       }
     }
