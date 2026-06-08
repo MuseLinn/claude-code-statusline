@@ -157,12 +157,13 @@ process.stdin.on('end', () => {
       modelLabel = matchedTier.tier + ' → ' + shortModel;
     }
 
-    // ---- effort level ----
+    // ---- effort level (mapped: low/medium/high → high, xhigh/max → max) ----
     var effortLevel = info.effort && info.effort.level || '';
     var effortStr = '';
     if (effortLevel) {
-      var ec = effortLevel === 'max' ? 31 : effortLevel === 'high' ? 33 : 32;
-      effortStr = ' \x1b[' + ec + 'm⚡' + effortLevel + '\x1b[0m';
+      var efMap = effortLevel === 'max' || effortLevel === 'xhigh' ? 'max' : 'high';
+      var ec = efMap === 'max' ? 31 : 32;
+      effortStr = ' \x1b[' + ec + 'm⚡' + efMap + '\x1b[0m';
     }
 
     // ---- pricing ----
@@ -290,7 +291,7 @@ process.stdin.on('end', () => {
       line1Parts.push('\x1b[94m⏱ ' + dur + '\x1b[0m');
     }
 
-    let line1 = line1Parts.join(' · ');
+    let line1 = line1Parts.join(' │ ');
     var line1Vis = line1.replace(/\x1b\[[0-9;]*m/g, '');
     if (line1Vis.length > cols) {
       line1 = line1.slice(0, cols + line1.length - line1Vis.length - 3) + '...';
@@ -335,7 +336,7 @@ process.stdin.on('end', () => {
       line2Parts.push('\x1b[96m\u{1F4CA} ¥' + costStr(lifeCost) + '\x1b[0m');
     }
 
-    let line2 = line2Parts.join(' · ');
+    let line2 = line2Parts.join(' │ ');
     var line2Vis = line2.replace(/\x1b\[[0-9;]*m/g, '');
     if (line2Vis.length > cols) {
       line2 = line2.slice(0, cols + line2.length - line2Vis.length - 3) + '...';
