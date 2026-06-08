@@ -194,7 +194,12 @@ process.stdin.on('end', () => {
 
     // ---- cumulative session cost (model-safe: store cost directly, not recalculate) ----
     const cache = readCache();
-    const sess = cache.sessions[sid] || { in: 0, out: 0, cache: 0, paid: 0 };
+    var sess = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
+    // Migration: old sessions without 'paid' → calculate from tokens at current pricing
+    if (sess.paid === undefined && (sess.in || sess.cache || sess.out)) {
+      sess.paid = (sess.in * p.input + sess.cache * p.cached + sess.out * p.output) / 1000000;
+    }
+    if (sess.paid === undefined) sess.paid = 0;
     const prevIn = sess.in || 0, prevOut = sess.out || 0, prevCache = sess.cache || 0;
 
     const hasLast = '_lastIn' in sess;
