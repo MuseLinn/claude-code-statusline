@@ -265,17 +265,17 @@ process.stdin.on('end', () => {
     }
 
     if (dirShort) {
-      line1Parts.push('\x1b[2m' + dirShort + '\x1b[0m');
+      line1Parts.push('\x1b[96m' + dirShort + '\x1b[0m');
     }
 
     line1Parts.push('\x1b[1;37m\u{1F916} ' + modelLabel + '\x1b[0m');
 
     if (balanceStr) {
-      line1Parts.push('\x1b[36m\u{1F4B3} ' + balanceStr + '\x1b[0m');
+      line1Parts.push('\x1b[93m\u{1F4B3} ' + balanceStr + '\x1b[0m');
     }
 
     if (dur) {
-      line1Parts.push('\x1b[2m⏱ ' + dur + '\x1b[0m');
+      line1Parts.push('\x1b[94m⏱ ' + dur + '\x1b[0m');
     }
 
     let line1 = line1Parts.join(' · ');
@@ -292,19 +292,19 @@ process.stdin.on('end', () => {
     // [bar] 80% [1.0M]
     var barStr = '\x1b[' + barColor + 'm[' + bar + ']\x1b[0m \x1b[' + barColor + 'm' + remPct + '%\x1b[0m';
     if (ctxSizeStr) {
-      barStr += '\x1b[2m' + ctxSizeStr + '\x1b[0m';
+      barStr += '\x1b[90m' + ctxSizeStr + '\x1b[0m';
     }
     line2Parts.push(barStr);
 
     // down 13.3K box 5.7M up 11.7K
-    line2Parts.push('\x1b[36m⬇ ' + fmt(sess.in) + '\x1b[0m \x1b[2m\u{1F4E6}' + fmt(sess.cache) + '\x1b[0m \x1b[35m⬆ ' + fmt(sess.out) + '\x1b[0m');
+    line2Parts.push('\x1b[96m⬇ ' + fmt(sess.in) + '\x1b[0m \x1b[93m\u{1F4E6}' + fmt(sess.cache) + '\x1b[0m \x1b[95m⬆ ' + fmt(sess.out) + '\x1b[0m');
 
     // session cost
     line2Parts.push('\x1b[33m\u{1F4B0} ¥' + costStr(cost) + '\x1b[0m');
 
     // total lifetime (if more than session)
     if (lifeCost > 0) {
-      line2Parts.push('\x1b[2m\u{1F4CA} ¥' + costStr(lifeCost) + '\x1b[0m');
+      line2Parts.push('\x1b[96m\u{1F4CA} ¥' + costStr(lifeCost) + '\x1b[0m');
     }
 
     let line2 = line2Parts.join(' · ');
