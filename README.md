@@ -1,5 +1,7 @@
 # deepseek-statusline
 
+>  **Recommended install**: via [MuseLinn/muselinn-garage](https://github.com/MuseLinn/muselinn-garage) — one marketplace for all your Claude Code tools.
+
 A [Claude Code](https://code.claude.com/) statusline plugin for DeepSeek models.
 Anthropic-inspired warm palette, colour-coded git porcelain status, TrueColor gradient context bar, rolling burn rate, and more.
 
