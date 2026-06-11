@@ -345,25 +345,20 @@ process.stdin.on('end', () => {
       churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, '/') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
 
-    // Burn rate (last 10 min window, 15s snapshots)
+    // Burn rate: last 10 min window, 1 snapshot every 10s
     let burn = '';
-    const BURN_WIN = 10 * 60 * 1000;
+    const nw = Date.now();
     s._snaps = s._snaps || [];
-    s._snaps.push({ ts: Date.now(), cost: sessCost });
-    const snapCut = Date.now() - BURN_WIN;
-    s._snaps = s._snaps.filter(x => x.ts > snapCut);
-    // Dedupe: one entry per 15s
-    const deduped = [];
-    let lastTs = 0;
-    for (const x of s._snaps) {
-      if (x.ts - lastTs >= 15000) { deduped.push(x); lastTs = x.ts; }
+    // Only add snapshot if ≥10s since last one
+    if (!s._snaps.length || nw - s._snaps[s._snaps.length - 1].ts >= 10000) {
+      s._snaps.push({ ts: nw, cost: sessCost });
     }
-    s._snaps = deduped;
+    // Keep only last 10 min (≈60 entries max)
+    s._snaps = s._snaps.filter(x => nw - x.ts < 600000);
     if (s._snaps.length >= 2 && sessCost > 0.001) {
-      const first = s._snaps[0], last = s._snaps[s._snaps.length - 1];
-      const dtHr = (last.ts - first.ts) / 3600000;
-      const dc = last.cost - first.cost;
-      if (dtHr > 0.01 && dc > 0.0001) burn = '~¥' + fcny(dc / dtHr) + '/h';
+      const dtHr = (nw - s._snaps[0].ts) / 3600000;
+      const dc = sessCost - s._snaps[0].cost;
+      if (dtHr > 0.005 && dc > 0.0001) burn = '~¥' + fcny(dc / dtHr) + '/h';
     }
 
     // ── width ───────────────────────────────────────────────────────────────
