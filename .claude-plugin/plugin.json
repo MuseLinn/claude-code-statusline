@@ -2,5 +2,12 @@
   "name": "deepseek-statusline",
   "version": "0.4.2",
   "description": "Anthropic-warm styled statusline for Claude Code + DeepSeek — colour-coded git, TrueColor gradient bar, rolling burn rate, code churn, Vim mode, PR status",
+  "author": {
+    "name": "MuseLinn",
+    "url": "https://github.com/MuseLinn"
+  },
+  "repository": "https://github.com/MuseLinn/deepseek-statusline",
+  "license": "MIT",
+  "keywords": ["deepseek", "statusline", "cost-tracking", "context-bar"],
   "main": "commands/setup.ts"
 }
