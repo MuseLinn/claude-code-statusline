@@ -1,6 +1,6 @@
 {
   "name": "deepseek-statusline",
-  "version": "0.1.0",
-  "description": "DeepSeek optimised statusline for Claude Code — shows balance, session cost, lifetime cost, context bar, tokens, cache, git status, and session duration",
+  "version": "0.4.2",
+  "description": "Anthropic-warm styled statusline for Claude Code + DeepSeek — colour-coded git, TrueColor gradient bar, rolling burn rate, code churn, Vim mode, PR status",
   "main": "commands/setup.ts"
 }
