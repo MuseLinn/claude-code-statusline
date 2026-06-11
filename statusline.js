@@ -254,12 +254,6 @@ process.stdin.on('end', () => {
       const d = Math.max(0, to - (s._lastOut || 0));
       s.out = po + d; s.paid = (s.paid || 0) + (d * p.o) / 1e6;
     }
-    // Real-time tokens/sec (wall-clock delta between statusline refreshes)
-    const tsNow = Date.now();
-    const dtMs = s._lastTs ? tsNow - s._lastTs : 0;
-    const inPerSec = dtMs > 500 && dtIn > 0 ? Math.round(dtIn / (dtMs / 1000)) : 0;
-    const outPerSec = dtMs > 500 && dtOut > 0 ? Math.round(dtOut / (dtMs / 1000)) : 0;
-    s._lastTs = tsNow;
     s._lastIn = ti; s._lastOut = to; s._lastCache = tc; s.ts = Date.now();
     cache.sessions[sid] = s;
     const wk = 7 * 864e5;
@@ -395,15 +389,15 @@ process.stdin.on('end', () => {
     const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
     L2.push(prog + ctxWarn);
 
-    // Tokens
-    let tks = S(C.tIn, fnum(s.in));
-    if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
-    tks += ' ' + S(C.tOut, fnum(s.out));
-    // Real-time speed
-    const spd = [];
-    if (inPerSec > 0) spd.push(S(C.tIn, '↓' + fnum(inPerSec) + '/s'));
-    if (outPerSec > 0) spd.push(S(C.tOut, '↑' + fnum(outPerSec) + '/s'));
-    if (spd.length) tks += ' ' + S(C.muted, spd.join(' '));
+    // Tokens: cumulative + per-turn delta for each
+    let tks = S(C.tIn, '↓' + fnum(s.in));
+    if (dtIn > 0) tks += S(C.muted, '(+' + fnum(dtIn) + ')');
+    if (pc > 0) {
+      tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
+      if (dtCache > 0) tks += S(C.muted, '(+' + fnum(dtCache) + ')');
+    }
+    tks += ' ' + S(C.tOut, '↑' + fnum(s.out));
+    if (dtOut > 0) tks += S(C.muted, '(+' + fnum(dtOut) + ')');
     L2.push(tks);
 
     // Turn cost
