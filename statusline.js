@@ -399,19 +399,11 @@ process.stdin.on('end', () => {
     let tks = S(C.tIn, fnum(s.in));
     if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
     tks += ' ' + S(C.tOut, fnum(s.out));
-    // Per-turn delta + real-time speed
-    if (dtIn > 0 || dtOut > 0) {
-      let d = '(';
-      if (dtIn > 0) d += S(C.tIn, '+' + fnum(dtIn));
-      if (dtCache > 0) d += S(C.tCch, ' +' + fnum(dtCache));
-      if (dtOut > 0) d += S(C.tOut, ' +' + fnum(dtOut));
-      d += ')';
-      const spd = [];
-      if (inPerSec > 0) spd.push(S(C.tIn, '↓' + fnum(inPerSec) + '/s'));
-      if (outPerSec > 0) spd.push(S(C.tOut, '↑' + fnum(outPerSec) + '/s'));
-      if (spd.length) d += ' ' + spd.join(' ');
-      tks += ' ' + S(C.muted, d);
-    }
+    // Real-time speed
+    const spd = [];
+    if (inPerSec > 0) spd.push(S(C.tIn, '↓' + fnum(inPerSec) + '/s'));
+    if (outPerSec > 0) spd.push(S(C.tOut, '↑' + fnum(outPerSec) + '/s'));
+    if (spd.length) tks += ' ' + S(C.muted, spd.join(' '));
     L2.push(tks);
 
     // Turn cost
