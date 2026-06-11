@@ -254,11 +254,12 @@ process.stdin.on('end', () => {
       const d = Math.max(0, to - (s._lastOut || 0));
       s.out = po + d; s.paid = (s.paid || 0) + (d * p.o) / 1e6;
     }
-    // API duration tracking (for tokens/sec)
-    const curApiMs = I.cost?.total_api_duration_ms || 0;
-    const dtApiMs = hl ? Math.max(0, curApiMs - (s._lastApiMs || 0)) : 0;
-    const tokPerSec = dtApiMs > 100 ? Math.round(dtOut / (dtApiMs / 1000)) : 0;
-    s._lastApiMs = curApiMs;
+    // Real-time tokens/sec (wall-clock delta between statusline refreshes)
+    const tsNow = Date.now();
+    const dtMs = s._lastTs ? tsNow - s._lastTs : 0;
+    const inPerSec = dtMs > 500 && dtIn > 0 ? Math.round(dtIn / (dtMs / 1000)) : 0;
+    const outPerSec = dtMs > 500 && dtOut > 0 ? Math.round(dtOut / (dtMs / 1000)) : 0;
+    s._lastTs = tsNow;
     s._lastIn = ti; s._lastOut = to; s._lastCache = tc; s.ts = Date.now();
     cache.sessions[sid] = s;
     const wk = 7 * 864e5;
@@ -398,14 +399,17 @@ process.stdin.on('end', () => {
     let tks = S(C.tIn, fnum(s.in));
     if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
     tks += ' ' + S(C.tOut, fnum(s.out));
-    // Per-turn delta + speed
+    // Per-turn delta + real-time speed
     if (dtIn > 0 || dtOut > 0) {
       let d = '(';
       if (dtIn > 0) d += S(C.tIn, '+' + fnum(dtIn));
       if (dtCache > 0) d += S(C.tCch, ' +' + fnum(dtCache));
       if (dtOut > 0) d += S(C.tOut, ' +' + fnum(dtOut));
       d += ')';
-      if (tokPerSec > 0) d += ' ' + S(C.tOut, fnum(tokPerSec) + 't/s');
+      const spd = [];
+      if (inPerSec > 0) spd.push(S(C.tIn, '↓' + fnum(inPerSec) + '/s'));
+      if (outPerSec > 0) spd.push(S(C.tOut, '↑' + fnum(outPerSec) + '/s'));
+      if (spd.length) d += ' ' + spd.join(' ');
       tks += ' ' + S(C.muted, d);
     }
     L2.push(tks);
