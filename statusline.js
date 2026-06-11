@@ -345,21 +345,8 @@ process.stdin.on('end', () => {
       churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, '/') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
 
-    // Burn rate: last 10 min window, 1 snapshot every 10s
-    let burn = '';
-    const nw = Date.now();
-    s._snaps = s._snaps || [];
-    // Only add snapshot if ≥10s since last one
-    if (!s._snaps.length || nw - s._snaps[s._snaps.length - 1].ts >= 10000) {
-      s._snaps.push({ ts: nw, cost: sessCost });
-    }
-    // Keep only last 10 min (≈60 entries max)
-    s._snaps = s._snaps.filter(x => nw - x.ts < 600000);
-    if (s._snaps.length >= 2 && sessCost > 0.001) {
-      const dtHr = (nw - s._snaps[0].ts) / 3600000;
-      const dc = sessCost - s._snaps[0].cost;
-      if (dtHr > 0.005 && dc > 0.0001) burn = '~¥' + fcny(dc / dtHr) + '/h';
-    }
+    // Note: burn rate removed — per-turn cost ¥x.xxxx is more reliable
+    // than a short-window estimate that spikes after idle periods.
 
     // ── width ───────────────────────────────────────────────────────────────
     const col = parseInt(process.env.COLUMNS || '120', 10);
@@ -428,13 +415,9 @@ process.stdin.on('end', () => {
 
     // Churn
     if (churn) L2.push(churn);
-
-    // Burn rate
-    if (burn) L2.push(S(C.burn, burn));
-
     let line2 = L2.join(SEP);
     if (vlen(line2) > col) {
-      // drop burn, then churn, then total
+      // drop churn, then total
       const fb = [L2[0], L2[1], L2[2]];
       if (L2[3]) fb.push(L2[3]);
       line2 = fb.join(SEP);
