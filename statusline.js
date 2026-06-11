@@ -24,34 +24,38 @@ const PRICE = {
   'deepseek-v4-pro':   { i: 3, c: 0.025, o: 6 },
 };
 
-// ---- semantic palette -------------------------------------------------------
+// ---- Anthropic-inspired warm palette -----------------------------------------
 const C = {
-  git:    '38;5;42',     // green
-  gs:     '38;5;244',    // git status codes
-  dir:    '38;5;39',     // blue
-  tierS:  '38;5;81',     // sonnet cyan
-  tierO:  '38;5;207',    // opus magenta
-  tierH:  '38;5;48',     // haiku green
-  efHi:   '38;5;203',    // max effort red
-  efLo:   '38;5;48',     // high effort green
-  bag:    '38;5;255',    // badge text white
-  bbg:    '48;5;237',    // badge bg dark
-  sep:    '38;5;240',    // separator
-  tIn:    '38;5;81',     // cyan
-  tOut:   '38;5;207',    // magenta
-  tCch:   '38;5;220',    // gold
-  cost:   '38;5;215',    // amber
-  bal:    '38;5;220',    // gold
-  clock:  '38;5;144',    // warm grey
-  muted:  '38;5;243',    // dim
-  warn:   '38;5;203',    // red
-  add:    '38;5;42',     // added lines green
-  del:    '38;5;203',    // deleted lines red
-  prOk:   '38;5;42',     // PR approved green
-  prPend: '38;5;220',    // PR pending gold
-  prChg:  '38;5;203',    // PR changes req red
-  prDraft:'38;5;243',    // PR draft grey
-  burn:   '38;5;243',    // burn rate dim
+  git:    '38;5;108',   // sage green
+  gitM:   '38;5;216',   // modified amber
+  gitA:   '38;5;108',   // added green
+  gitD:   '38;5;209',   // deleted rust
+  gitR:   '38;5;109',   // renamed blue
+  gitU:   '38;5;144',   // untracked grey
+  dir:    '38;5;109',   // muted blue
+  tierS:  '38;5;109',   // sonnet muted cyan
+  tierO:  '38;5;216',   // opus warm peach
+  tierH:  '38;5;108',   // haiku sage
+  efHi:   '38;5;209',   // max effort rust
+  efLo:   '38;5;108',   // high effort sage
+  bag:    '38;5;229',   // cream text
+  bbg:    '48;5;236',   // warm dark block bg
+  sep:    '38;5;240',   // separator grey
+  tIn:    '38;5;109',   // muted blue
+  tOut:   '38;5;174',   // muted rose
+  tCch:   '38;5;180',   // warm tan
+  cost:   '38;5;216',   // warm amber
+  bal:    '38;5;216',   // warm amber
+  clock:  '38;5;144',   // warm grey
+  muted:  '38;5;243',   // dim
+  warn:   '38;5;209',   // rust
+  add:    '38;5;108',   // sage
+  del:    '38;5;174',   // muted rose
+  prOk:   '38;5;108',
+  prPend: '38;5;216',
+  prChg:  '38;5;209',
+  prDraft:'38;5;243',
+  burn:   '38;5;144',
 };
 
 // ---- helpers -----------------------------------------------------------------
@@ -73,16 +77,15 @@ function fcny(n) {
 }
 function pad(n, w) { return n.toString().padStart(w); }
 
-// ---- TrueColor gradient: green→yellow→red -----------------------------------
-function rgb(r, g, b, s) {
-  return NC ? s : '\x1b[38;2;' + r + ';' + g + ';' + b + 'm' + s + Z;
-}
+// ---- TrueColor gradient: sage → amber → rust (Anthropic warm) ----------------
+function rgb(r, g, b, s) { return NC ? s : '\x1b[38;2;' + r + ';' + g + ';' + b + 'm' + s + Z; }
 function barGrad(pct) {
-  // Green (40,200,40) → Yellow (240,220,40) → Red (235,60,50)
-  const r = pct < 50 ? Math.round(40 + pct * 4) : Math.round(240 - (pct - 50) * 0.1);
-  const g = pct < 50 ? Math.round(200 + pct * 0.4) : Math.round(220 - (pct - 50) * 3.2);
-  const b_ = 40; // stays low
-  return [Math.min(255, Math.max(0, r)), Math.min(255, Math.max(0, g)), b_];
+  const t = pct / 100;
+  // sage green → warm amber → rust orange
+  const r = Math.round(140 + t * 80);
+  const g = Math.round(165 - t * 70);
+  const b = Math.round(100 - t * 60);
+  return [r, g, b];
 }
 
 // ---- I/O ---------------------------------------------------------------------
@@ -280,6 +283,8 @@ process.stdin.on('end', () => {
     } else {
       dir = np.split('/').filter(Boolean).slice(-2).join('/');
     }
+    // Truncate very long segments
+    dir = dir.split('/').map(s => s.length > 24 ? s.slice(0, 22) + '…' : s).join('/');
 
     // ── duration ────────────────────────────────────────────────────────────
     let dur = '';
@@ -293,24 +298,24 @@ process.stdin.on('end', () => {
     const now = new Date();
     const clock = pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2);
 
-    // ── git ─────────────────────────────────────────────────────────────────
+    // ── git (bg block, Anthropic warm) ──────────────────────────────────────
     const git = getGit();
     let gitTag = '';
     if (git.branch) {
       const st = git.st;
       const dirty = st.M || st.A || st.D || st.R || st.U;
+      let content = git.branch;
       if (dirty) {
         const parts = [];
-        // prettier: "3M", "2A", "1D", "5?"
-        if (st.M) parts.push(pad(st.M, 1) + 'M');
-        if (st.A) parts.push(pad(st.A, 1) + 'A');
-        if (st.D) parts.push(pad(st.D, 1) + 'D');
-        if (st.R) parts.push(pad(st.R, 1) + 'R');
-        if (st.U) parts.push(pad(st.U, 1) + '?');
-        gitTag = S(C.git, git.branch) + ' ' + S(C.gs, parts.join('·'));
-      } else {
-        gitTag = S(C.git, git.branch);
+        if (st.M) parts.push(S(C.gitM, pad(st.M, 1) + 'M'));
+        if (st.A) parts.push(S(C.gitA, pad(st.A, 1) + 'A'));
+        if (st.D) parts.push(S(C.gitD, pad(st.D, 1) + 'D'));
+        if (st.R) parts.push(S(C.gitR, pad(st.R, 1) + 'R'));
+        if (st.U) parts.push(S(C.gitU, pad(st.U, 1) + 'N'));
+        content += ' ' + parts.join(S(C.muted, '·'));
       }
+      // background block: warm dark bg + sage green text
+      gitTag = R(C.bbg) + S(C.git, ' ' + content + ' ') + Z;
     }
 
     // ── conditionals ────────────────────────────────────────────────────────
@@ -340,12 +345,30 @@ process.stdin.on('end', () => {
       churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, '/') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
 
-    // Burn rate
+    // Burn rate (last 10 min window)
     let burn = '';
-    if (sessCost > 0.001 && dm > 60000) {
-      const hr = dm / 3600000;
-      const rate = sessCost / hr;
-      burn = '~¥' + fcny(rate) + '/h';
+    const BURN_WIN = 10 * 60 * 1000; // 10 min
+    s._snaps = s._snaps || [];
+    s._snaps.push({ ts: Date.now(), cost: sessCost });
+    // Keep only last 10 min + dedupe every 15s
+    const snapCut = Date.now() - BURN_WIN;
+    s._snaps = s._snaps.filter(x => x.ts > snapCut);
+    // Dedupe: keep only one per 15s interval
+    const deduped = [];
+    let lastTs = 0;
+    for (const x of s._snaps) {
+      if (x.ts - lastTs >= 15000) { deduped.push(x); lastTs = x.ts; }
+    }
+    // Always keep the most recent
+    if (deduped.length && deduped[deduped.length - 1] !== s._snaps[s._snaps.length - 1]) {
+      deduped.push(s._snaps[s._snaps.length - 1]);
+    }
+    s._snaps = deduped;
+    if (s._snaps.length >= 2 && sessCost > 0.001) {
+      const first = s._snaps[0], last = s._snaps[s._snaps.length - 1];
+      const dtHr = (last.ts - first.ts) / 3600000;
+      const dc = last.cost - first.cost;
+      if (dtHr > 0.01 && dc > 0.0001) burn = '~¥' + fcny(dc / dtHr) + '/h';
     }
 
     // ── width ───────────────────────────────────────────────────────────────
@@ -359,7 +382,7 @@ process.stdin.on('end', () => {
     if (gitTag)   L1l.push(gitTag + wtTag + prTag);
     if (dir)      L1l.push(S(C.dir, dir));
 
-    // model badge
+    // model badge (padding inside bg, no extra spaces leaked)
     const badge = R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z;
     L1l.push(S(tclr, badge) + efTxt + vimTag);
 
@@ -368,11 +391,11 @@ process.stdin.on('end', () => {
     L1r.push(S(C.clock, clock));
     if (dur)      L1r.push(S(C.muted, dur));
 
-    let line1 = L1l.concat(L1r).join(' ' + SEP + ' ');
+    let line1 = L1l.concat(L1r).join(SEP);
     if (vlen(line1) > col) {
       // collapse: git + model + right
       const fb = L1l.concat(L1r.slice(-2));
-      line1 = fb.join(' ' + SEP + ' ');
+      line1 = fb.join(SEP);
       if (vlen(line1) > col) line1 = line1.slice(0, Math.max(0, col + line1.length - vlen(line1) - 2)) + '…';
     }
 
@@ -390,9 +413,9 @@ process.stdin.on('end', () => {
     L2.push(prog + ctxWarn);
 
     // Tokens
-    let tks = S(C.tIn, fnum(s.in).padStart(5));
+    let tks = S(C.tIn, fnum(s.in));
     if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
-    tks += ' ' + S(C.tOut, fnum(s.out).padStart(5));
+    tks += ' ' + S(C.tOut, fnum(s.out));
     // Per-turn delta
     if (dtIn > 0 || dtOut > 0) {
       let d = '(';
@@ -419,15 +442,15 @@ process.stdin.on('end', () => {
     // Burn rate
     if (burn) L2.push(S(C.burn, burn));
 
-    let line2 = L2.join(' ' + SEP + ' ');
+    let line2 = L2.join(SEP);
     if (vlen(line2) > col) {
       // drop burn, then churn, then total
       const fb = [L2[0], L2[1], L2[2]];
       if (L2[3]) fb.push(L2[3]);
-      line2 = fb.join(' ' + SEP + ' ');
+      line2 = fb.join(SEP);
       if (vlen(line2) > col) {
         const fb2 = [L2[0], L2[1], L2[2]];
-        line2 = fb2.join(' ' + SEP + ' ');
+        line2 = fb2.join(SEP);
         if (vlen(line2) > col) line2 = line2.slice(0, Math.max(0, col + line2.length - vlen(line2) - 2)) + '…';
       }
     }
