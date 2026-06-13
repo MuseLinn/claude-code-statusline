@@ -27,30 +27,30 @@ const PRICE = {
 // ---- Anthropic-inspired warm palette -----------------------------------------
 const C = {
   git:    '38;5;108',   // sage green
-  gitM:   '38;5;216',   // modified amber
-  gitA:   '38;5;108',   // added green
-  gitD:   '38;5;209',   // deleted rust
-  gitR:   '38;5;109',   // renamed blue
+  gitM:   '38;5;215',   // modified amber
+  gitA:   '38;5;114',   // added teal-green
+  gitD:   '38;5;203',   // deleted warm red
+  gitR:   '38;5;110',   // renamed blue
   gitU:   '38;5;144',   // untracked grey
-  dir:    '38;5;109',   // muted blue
-  tierS:  '38;5;109',   // sonnet muted cyan
-  tierO:  '38;5;216',   // opus warm peach
+  dir:    '38;5;110',   // muted blue
+  tierS:  '38;5;110',   // sonnet blue
+  tierO:  '38;5;215',   // opus peach
   tierH:  '38;5;108',   // haiku sage
-  efHi:   '38;5;209',   // max effort rust
+  efHi:   '38;5;203',   // max effort red
   efLo:   '38;5;108',   // high effort sage
   bag:    '38;5;229',   // cream text
   bbg:    '48;5;236',   // warm dark block bg
   sep:    '38;5;240',   // separator grey
-  tIn:    '38;5;109',   // muted blue
-  tOut:   '38;5;174',   // muted rose
-  tCch:   '38;5;180',   // warm tan
-  cost:   '38;5;216',   // warm amber
-  bal:    '38;5;216',   // warm amber
+  tIn:    '38;5;110',   // input blue
+  tOut:   '38;5;174',   // output rose
+  tCch:   '38;5;180',   // cache tan
+  cost:   '38;5;215',   // cost amber
+  bal:    '38;5;215',   // balance amber
   clock:  '38;5;144',   // warm grey
   muted:  '38;5;243',   // dim
-  warn:   '38;5;209',   // rust
-  add:    '38;5;108',   // sage
-  del:    '38;5;174',   // muted rose
+  warn:   '38;5;203',   // rust
+  add:    '38;5;114',   // added teal
+  del:    '38;5;174',   // deleted rose
   prOk:   '38;5;108',
   prPend: '38;5;216',
   prChg:  '38;5;209',
@@ -340,7 +340,7 @@ process.stdin.on('end', () => {
     const removed = I.cost?.total_lines_removed || 0;
     let churn = '';
     if (added > 0 || removed > 0) {
-      churn = S(C.muted, 'Δ ') + (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, ' ') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
+      churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, ' ') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
 
     // Note: burn rate removed — per-turn cost ¥x.xxxx is more reliable
