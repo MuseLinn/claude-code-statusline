@@ -80,10 +80,10 @@ function pad(n, w) { return n.toString().padStart(w); }
 function rgb(r, g, b, s) { return NC ? s : '\x1b[38;2;' + r + ';' + g + ';' + b + 'm' + s + Z; }
 function barGrad(pct) {
   const t = pct / 100;
-  // sage 0-50% → amber 50-80% → rust 80-100%
-  const r = Math.round(110 + t * 110);
-  const g = Math.round(175 - t * 80);
-  const b = Math.round(115 - t * 80);
+  // 100% rem = sage (good) → 0% rem = rust (danger)
+  const r = Math.round(203 - t * 93);
+  const g = Math.round(95 + t * 80);
+  const b = Math.round(35 + t * 80);
   return [r, g, b];
 }
 
@@ -379,8 +379,8 @@ process.stdin.on('end', () => {
     const L2 = [];
 
     // Progress: ▐████▌░░░░░▌ 73%
-    const prog = S('38;5;240', '▐') + bar(used) + S('38;5;240', '▌') + (() => {
-      const [r, g, b] = barGrad(used);
+    const prog = S('38;5;240', '▐') + bar(rem) + S('38;5;240', '▌') + (() => {
+      const [r, g, b] = barGrad(rem);
       return rgb(r, g, b, pad(rem, 3) + '%');
     })();
     const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
