@@ -312,8 +312,7 @@ process.stdin.on('end', () => {
         if (st.U) parts.push(S(C.gitU, pad(st.U, 1) + 'N'));
         content += ' ' + parts.join(S(C.muted, '·'));
       }
-      // background block: warm dark bg + sage green text
-      gitTag = R(C.bbg) + S(C.git, ' ' + content + ' ') + Z;
+      gitTag = S(C.git, content);
     }
 
     // ── conditionals ────────────────────────────────────────────────────────
@@ -387,15 +386,15 @@ process.stdin.on('end', () => {
     const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
     L2.push(prog + ctxWarn);
 
-    // Tokens: cumulative + per-turn delta for each
+    // Tokens: cumulative + per-turn delta
     let tks = S(C.tIn, 'in:' + fnum(s.in));
-    if (dtIn > 0) tks += S(C.muted, '(+' + fnum(dtIn) + ')');
+    if (dtIn > 0) tks += ' ' + S(C.muted, '+' + fnum(dtIn));
     if (pc > 0) {
       tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
-      if (dtCache > 0) tks += S(C.muted, '(+' + fnum(dtCache) + ')');
+      if (dtCache > 0) tks += ' ' + S(C.muted, '+' + fnum(dtCache));
     }
     tks += ' ' + S(C.tOut, 'out:' + fnum(s.out));
-    if (dtOut > 0) tks += S(C.muted, '(+' + fnum(dtOut) + ')');
+    if (dtOut > 0) tks += ' ' + S(C.muted, '+' + fnum(dtOut));
     L2.push(tks);
 
     // Turn cost
@@ -405,7 +404,7 @@ process.stdin.on('end', () => {
     if (turns > 0) L2.push(S(C.muted, '#' + turns));
 
     // Total
-    if (sessCost > 0.001) L2.push(S(C.muted, 'Total ¥' + fcny(sessCost)));
+    if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
 
     // Churn
     if (churn) L2.push(churn);
