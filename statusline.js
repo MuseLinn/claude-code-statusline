@@ -390,13 +390,13 @@ process.stdin.on('end', () => {
     L2.push(prog + ctxWarn);
 
     // Tokens: cumulative + per-turn delta for each
-    let tks = S(C.tIn, '↓' + fnum(s.in));
+    let tks = S(C.tIn, 'in:' + fnum(s.in));
     if (dtIn > 0) tks += S(C.muted, '(+' + fnum(dtIn) + ')');
     if (pc > 0) {
       tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
       if (dtCache > 0) tks += S(C.muted, '(+' + fnum(dtCache) + ')');
     }
-    tks += ' ' + S(C.tOut, '↑' + fnum(s.out));
+    tks += ' ' + S(C.tOut, 'out:' + fnum(s.out));
     if (dtOut > 0) tks += S(C.muted, '(+' + fnum(dtOut) + ')');
     L2.push(tks);
 
