@@ -80,10 +80,10 @@ function pad(n, w) { return n.toString().padStart(w); }
 function rgb(r, g, b, s) { return NC ? s : '\x1b[38;2;' + r + ';' + g + ';' + b + 'm' + s + Z; }
 function barGrad(pct) {
   const t = pct / 100;
-  // sage green → warm amber → rust orange
-  const r = Math.round(140 + t * 80);
-  const g = Math.round(165 - t * 70);
-  const b = Math.round(100 - t * 60);
+  // sage 0-50% → amber 50-80% → rust 80-100%
+  const r = Math.round(110 + t * 110);
+  const g = Math.round(175 - t * 80);
+  const b = Math.round(115 - t * 80);
   return [r, g, b];
 }
 
@@ -379,29 +379,24 @@ process.stdin.on('end', () => {
     const L2 = [];
 
     // Progress: ▐████▌░░░░░▌ 73%
-    const prog = S('38;5;240', '▐') + bar(used) + S('38;5;240', '▌') + ' ' + (() => {
+    const prog = S('38;5;240', '▐') + bar(used) + S('38;5;240', '▌') + (() => {
       const [r, g, b] = barGrad(used);
       return rgb(r, g, b, pad(rem, 3) + '%');
     })();
     const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
     L2.push(prog + ctxWarn);
 
-    // Tokens: cumulative + per-turn delta
+    // Tokens: cumulative only (deltas removed — cumulative growth is enough)
     let tks = S(C.tIn, 'in:' + fnum(s.in));
-    if (dtIn > 0) tks += ' ' + S(C.muted, '+' + fnum(dtIn));
-    if (pc > 0) {
-      tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
-      if (dtCache > 0) tks += ' ' + S(C.muted, '+' + fnum(dtCache));
-    }
+    if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
     tks += ' ' + S(C.tOut, 'out:' + fnum(s.out));
-    if (dtOut > 0) tks += ' ' + S(C.muted, '+' + fnum(dtOut));
     L2.push(tks);
 
     // Turn cost
     L2.push(S(C.cost, '¥' + fcny(turnCost)));
 
     // Turns
-    if (turns > 0) L2.push(S(C.muted, '#' + turns));
+    if (turns > 0) L2.push(S('38;5;144', '·' + turns));
 
     // Total
     if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
