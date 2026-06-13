@@ -386,17 +386,17 @@ process.stdin.on('end', () => {
     const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
     L2.push(prog + ctxWarn);
 
-    // Tokens: cumulative only (deltas removed — cumulative growth is enough)
-    let tks = S(C.tIn, 'in:' + fnum(s.in));
-    if (pc > 0) tks += ' ' + S(C.tCch, '📦' + fnum(pc) + ' ' + cr + '%');
-    tks += ' ' + S(C.tOut, 'out:' + fnum(s.out));
+    // Tokens
+    let tks = S(C.tIn, fnum(s.in) + ' in');
+    if (pc > 0) tks += ' ' + S(C.tCch, '📦 ' + fnum(pc) + ' ' + cr + '%');
+    tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
     L2.push(tks);
 
     // Turn cost
     L2.push(S(C.cost, '¥' + fcny(turnCost)));
 
     // Turns
-    if (turns > 0) L2.push(S('38;5;144', '·' + turns));
+    if (turns > 0) L2.push(S('38;5;144', turns + ' turns'));
 
     // Total
     if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
