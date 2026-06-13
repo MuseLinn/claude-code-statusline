@@ -3,11 +3,11 @@
 >  **Recommended install**: via [MuseLinn/muselinn-garage](https://github.com/MuseLinn/muselinn-garage) — one marketplace for all your Claude Code tools.
 
 A [Claude Code](https://code.claude.com/) statusline plugin for DeepSeek models.
-Anthropic-inspired warm palette, colour-coded git porcelain status, TrueColor gradient context bar, rolling burn rate, and more.
+Anthropic-inspired warm palette, colour-coded git porcelain status, TrueColor gradient context bar, per-turn cost tracking, code churn, and more.
 
 ```
-main 8M·12N│GPR/UAV-Rotor-Interferen…│Opus → deepseek-v4-pro ⚡max│¥8.05│14:32│1h23m
-▐███▋░░░░░░▌ 64%│1.7M 📦54.8M 96.9% 162.0K (+371)│¥0.0092│#291│Total ¥7.58│+10740/-747│~¥0.42/h
+master │ ~ │ Opus → deepseek-v4-pro ⚡max │ ¥8.05 │ 14:32 │ 1h23m
+▐████▌░░░░░▌64% │ in:1.7M │ 📦54.8M 96.9% │ out:162.0K │ ¥0.0092 │ ·291 │ Total ¥7.58 │ +10740 -23
 ```
 
 ## Features
@@ -20,13 +20,11 @@ main 8M·12N│GPR/UAV-Rotor-Interferen…│Opus → deepseek-v4-pro ⚡max│�
 | 💳 Balance | DeepSeek account balance, cached 5 min |
 | ⏱ Clock + duration | real-time clock + session elapsed |
 | Context bar | 80-seg TrueColor gradient `▐████▌░░░░░▌` (sage→amber→rust) |
-| Token counts | `↓input 📦cache hit% ↑output` with per-turn deltas |
+| Token counts | `in:1.7M 📦54.8M 96.9% out:162.0K` — input/cache/output |
 | 💰 Cost | this turn cost + session cumulative |
-| 💬 Turns | conversation turn counter |
-| +N/-N Code churn | lines added / removed this session |
-| ~¥/h Burn rate | rolling 10-min window, not lifetime average |
-| Vim mode | shown when vim mode active |
-| Worktree / PR | auto-appear when relevant |
+| ·Turns | `·291` warm grey dot notation |
+| Δ Code churn | lines added / removed this session |
+| Vim mode / Worktree / PR | auto-appear when relevant |
 
 ## Requirements
 
