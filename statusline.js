@@ -55,7 +55,6 @@ const C = {
   prPend: '38;5;216',
   prChg:  '38;5;209',
   prDraft:'38;5;243',
-  burn:   '38;5;144',
 };
 
 // ---- helpers -----------------------------------------------------------------
@@ -212,7 +211,6 @@ process.stdin.on('end', () => {
     ];
     const lo = short.toLowerCase();
     const tm = TM.find(m => m.d && m.d.toLowerCase().replace(/\[.*?\]/g, '').includes(lo));
-    const tclr = tm ? tm.c : C.muted;
     const mlab = tm ? tm.t + ' → ' + short : short;
 
     // ── effort ──────────────────────────────────────────────────────────────
@@ -337,12 +335,12 @@ process.stdin.on('end', () => {
       prTag = S(clr, ' PR#' + I.pr.number + (I.pr.review_state ? ' ' + I.pr.review_state : ''));
     }
 
-    // Code churn
+    // Code churn (Anthropic Δ symbol)
     const added = I.cost?.total_lines_added || 0;
     const removed = I.cost?.total_lines_removed || 0;
     let churn = '';
     if (added > 0 || removed > 0) {
-      churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, '/') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
+      churn = S(C.muted, 'Δ ') + (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, ' ') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
 
     // Note: burn rate removed — per-turn cost ¥x.xxxx is more reliable
@@ -361,7 +359,7 @@ process.stdin.on('end', () => {
 
     // model badge (padding inside bg, no extra spaces leaked)
     const badge = R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z;
-    L1l.push(S(tclr, badge) + efTxt + vimTag);
+    L1l.push(badge + efTxt + vimTag);
 
     const L1r = []; // right
     if (bal)      L1r.push(S(C.bal, bal));
