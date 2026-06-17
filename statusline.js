@@ -234,7 +234,10 @@ process.stdin.on('end', () => {
     // ── session ─────────────────────────────────────────────────────────────
     const cache = rcache();
     let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
-    if (s.paid === undefined && (s.in || s.cache || s.out)) s.paid = ((s.in - s.cache) * p.i + s.cache * p.c + s.out * p.o) / 1e6;
+    if (s.paid === undefined && (s.in || s.cache || s.out)) {
+      const ec = Math.min(s.cache, s.in); // clamp: cache can't exceed input (corrupted data)
+      s.paid = ((s.in - ec) * p.i + ec * p.c + s.out * p.o) / 1e6;
+    }
     if (s.paid === undefined) s.paid = 0;
     const pi = s.in || 0, po = s.out || 0, pc = s.cache || 0;
     const hl = '_lastIn' in s;
@@ -248,9 +251,12 @@ process.stdin.on('end', () => {
       if (hl && ti < s._lastIn) {
         // Context compression: cumulative counts reset, just skip addition
       } else {
-        s.in = pi + ti; s.out = po + to; s.cache = pc + tc;
+        // Guard: cache reads cannot exceed input tokens; if they do the API
+        // data is inconsistent (compression artifact), so clamp
+        const effCache = Math.min(tc, ti);
+        s.in = pi + ti; s.out = po + to; s.cache = pc + effCache;
         s.turns = (s.turns || 0) + 1;
-        s.paid = (s.paid || 0) + ((ti - tc) * p.i + tc * p.c + to * p.o) / 1e6;
+        s.paid = (s.paid || 0) + ((ti - effCache) * p.i + effCache * p.c + to * p.o) / 1e6;
       }
     } else if (oc) {
       const d = Math.max(0, to - (s._lastOut || 0));
@@ -263,8 +269,8 @@ process.stdin.on('end', () => {
     wcache(cache);
 
     const sessCost = s.paid || 0;
-    const turnCost = ((ti - tc) * p.i + tc * p.c + to * p.o) / 1e6;
-    const cr = s.in > 0 ? (s.cache / s.in * 100).toFixed(1) : '0.0';
+    const turnCost = ((Math.max(0, ti - tc)) * p.i + Math.min(tc, ti) * p.c + to * p.o) / 1e6;
+    const cr = s.in > 0 ? Math.min(100, s.cache / s.in * 100).toFixed(1) : '0.0';
     const turns = s.turns || 0;
 
     const bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
