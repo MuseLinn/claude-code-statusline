@@ -234,7 +234,7 @@ process.stdin.on('end', () => {
     // ── session ─────────────────────────────────────────────────────────────
     const cache = rcache();
     let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
-    if (s.paid === undefined && (s.in || s.cache || s.out)) s.paid = (s.in * p.i + s.cache * p.c + s.out * p.o) / 1e6;
+    if (s.paid === undefined && (s.in || s.cache || s.out)) s.paid = ((s.in - s.cache) * p.i + s.cache * p.c + s.out * p.o) / 1e6;
     if (s.paid === undefined) s.paid = 0;
     const pi = s.in || 0, po = s.out || 0, pc = s.cache || 0;
     const hl = '_lastIn' in s;
@@ -245,9 +245,13 @@ process.stdin.on('end', () => {
     const dtCache = hl ? Math.max(0, tc - (s._lastCache || 0)) : tc;
 
     if (ic) {
-      s.in = pi + ti; s.out = po + to; s.cache = pc + tc;
-      s.turns = (s.turns || 0) + 1;
-      s.paid = (s.paid || 0) + (ti * p.i + tc * p.c + to * p.o) / 1e6;
+      if (hl && ti < s._lastIn) {
+        // Context compression: cumulative counts reset, just skip addition
+      } else {
+        s.in = pi + ti; s.out = po + to; s.cache = pc + tc;
+        s.turns = (s.turns || 0) + 1;
+        s.paid = (s.paid || 0) + ((ti - tc) * p.i + tc * p.c + to * p.o) / 1e6;
+      }
     } else if (oc) {
       const d = Math.max(0, to - (s._lastOut || 0));
       s.out = po + d; s.paid = (s.paid || 0) + (d * p.o) / 1e6;
@@ -259,8 +263,8 @@ process.stdin.on('end', () => {
     wcache(cache);
 
     const sessCost = s.paid || 0;
-    const turnCost = (ti * p.i + tc * p.c + to * p.o) / 1e6;
-    const cr = (s.in + s.cache) > 0 ? (s.cache / (s.in + s.cache) * 100).toFixed(1) : '0.0';
+    const turnCost = ((ti - tc) * p.i + tc * p.c + to * p.o) / 1e6;
+    const cr = s.in > 0 ? (s.cache / s.in * 100).toFixed(1) : '0.0';
     const turns = s.turns || 0;
 
     const bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
