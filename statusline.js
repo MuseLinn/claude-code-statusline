@@ -13,7 +13,7 @@ const { execSync } = require('child_process');
 const HOME = os.homedir();
 const CFG = path.join(HOME, '.claude', 'settings.json');
 const CACHE = path.join(HOME, '.claude', 'deepseek-cache.json');
-const BAL_TTL = 5 * 60 * 1000;
+const BAL_TTL = 30 * 1000;
 const GIT_TTL = 3 * 1000;
 const IO_MIN = 1500;
 const NC = !!process.env.NO_COLOR || !!process.env.CLAUDE_CODE_NO_COLOR;
@@ -274,6 +274,9 @@ process.stdin.on('end', () => {
     const turns = s.turns || 0;
 
     const bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
+    // Show staleness: balance fetched >60s ago gets a ~ suffix
+    const balAge = (Date.now() - (rcache().balanceTs || 0)) / 1000;
+    const balText = balAge > 60 ? bal + S(C.muted, '~') : bal;
 
     // ── dir ─────────────────────────────────────────────────────────────────
     const raw = I.workspace?.project_dir || I.workspace?.current_dir || I.cwd || process.cwd();
@@ -371,7 +374,7 @@ process.stdin.on('end', () => {
     L1l.push(badge + efTxt + vimTag);
 
     const L1r = []; // right
-    if (bal)      L1r.push(S(C.bal, bal));
+    if (bal)      L1r.push(S(C.bal, balText));
     L1r.push(S(C.clock, clock));
     if (dur)      L1r.push(S(C.muted, dur));
 
