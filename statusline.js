@@ -13,7 +13,8 @@ const { execSync } = require('child_process');
 const HOME = os.homedir();
 const CFG = path.join(HOME, '.claude', 'settings.json');
 const CACHE = path.join(HOME, '.claude', 'deepseek-cache.json');
-const BAL_TTL = 10 * 1000;
+const BAL_TTL  = 10 * 1000;       // balance API throttle (ms)
+const BAL_STALE = 20 * 1000;      // show ~ indicator after this age (ms)
 const GIT_TTL = 3 * 1000;
 const IO_MIN = 1500;
 const NC = !!process.env.NO_COLOR || !!process.env.CLAUDE_CODE_NO_COLOR;
@@ -62,6 +63,19 @@ const Z = NC ? '' : '\x1b[0m';
 const S = (c, s) => NC ? s : '\x1b[' + c + 'm' + s + Z;
 const R = c => NC ? '' : '\x1b[' + c + 'm';
 const vlen = s => s.replace(/\x1b\[[0-9;]*m/g, '').length;
+
+// ANSI-safe truncation: never cut in the middle of an escape sequence
+function visTrunc(s, max) {
+  if (vlen(s) <= max) return s;
+  let out = '', vis = 0;
+  const re = /\x1b\[[0-9;]*m|./g;
+  let m;
+  while ((m = re.exec(s)) && vis < max) {
+    if (m[0].startsWith('\x1b')) out += m[0];
+    else { out += m[0]; vis++; }
+  }
+  return out + '\x1b[0m…';
+}
 
 function fnum(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
@@ -225,7 +239,6 @@ process.stdin.on('end', () => {
     let rem = 100;
     if (cw.remaining_percentage != null) rem = Math.round(cw.remaining_percentage);
     else if (cw.used_percentage != null) rem = Math.round(100 - cw.used_percentage);
-    const used = 100 - rem;
 
     // ── tokens ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
@@ -243,9 +256,6 @@ process.stdin.on('end', () => {
     const hl = '_lastIn' in s;
     const ic = !hl || ti !== s._lastIn || tc !== s._lastCache;
     const oc = hl && !ic && to !== s._lastOut;
-    const dtIn = hl ? Math.max(0, ti - (s._lastIn || 0)) : ti;
-    const dtOut = hl ? Math.max(0, to - (s._lastOut || 0)) : to;
-    const dtCache = hl ? Math.max(0, tc - (s._lastCache || 0)) : tc;
 
     if (ic) {
       if (hl && ti < s._lastIn) {
@@ -274,9 +284,9 @@ process.stdin.on('end', () => {
     const turns = s.turns || 0;
 
     const bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
-    // Show staleness: balance fetched >60s ago gets a ~ suffix
-    const balAge = (Date.now() - (rcache().balanceTs || 0)) / 1000;
-    const balText = balAge > 15 ? bal + S(C.muted, '~') : bal;
+    // Show staleness: balance older than BAL_STALE gets a ~ suffix
+    const balAge = Date.now() - (rcache().balanceTs || 0);
+    const balText = balAge > BAL_STALE ? bal + S(C.muted, '~') : bal;
 
     // ── dir ─────────────────────────────────────────────────────────────────
     const raw = I.workspace?.project_dir || I.workspace?.current_dir || I.cwd || process.cwd();
@@ -380,10 +390,10 @@ process.stdin.on('end', () => {
 
     let line1 = L1l.concat(L1r).join(SEP);
     if (vlen(line1) > col) {
-      // collapse: git + model + right
+      // collapse: git + model + rightmost items only
       const fb = L1l.concat(L1r.slice(-2));
       line1 = fb.join(SEP);
-      if (vlen(line1) > col) line1 = line1.slice(0, Math.max(0, col + line1.length - vlen(line1) - 2)) + '…';
+      if (vlen(line1) > col) line1 = visTrunc(line1, col);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -418,15 +428,11 @@ process.stdin.on('end', () => {
     if (churn) L2.push(churn);
     let line2 = L2.join(SEP);
     if (vlen(line2) > col) {
-      // drop churn, then total
+      // drop churn, then total, then turns — keep progress + tokens + cost
       const fb = [L2[0], L2[1], L2[2]];
       if (L2[3]) fb.push(L2[3]);
       line2 = fb.join(SEP);
-      if (vlen(line2) > col) {
-        const fb2 = [L2[0], L2[1], L2[2]];
-        line2 = fb2.join(SEP);
-        if (vlen(line2) > col) line2 = line2.slice(0, Math.max(0, col + line2.length - vlen(line2) - 2)) + '…';
-      }
+      if (vlen(line2) > col) line2 = visTrunc(line2, col);
     }
 
     process.stdout.write('\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n');
