@@ -248,7 +248,6 @@ process.stdin.on('end', () => {
     // ── session metadata ────────────────────────────────────────────────────
     const sessionName = I.session_name || '';
     const agentName = I.agent?.name || '';
-    const thinkingEnabled = I.thinking?.enabled || false;
     const repoHost = I.workspace?.repo?.host || '';
     const repoOwner = I.workspace?.repo?.owner || '';
     const repoName = I.workspace?.repo?.name || '';
@@ -433,15 +432,12 @@ process.stdin.on('end', () => {
     // Agent prefix
     const agentPrefix = agentName ? S(C.muted, '[' + agentName + '] ') : '';
 
-    // Thinking indicator
-    const thinkingTag = thinkingEnabled ? S(C.muted, ' 🧠') : '';
-
     // Model badge (always kept)
-    const L1model = agentPrefix + R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z + efTxt + vimTag + thinkingTag;
+    const L1model = agentPrefix + R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z + efTxt + vimTag;
 
     // Right side items (bal is lowest priority for collapse)
     const L1r = []; // { pri: 0-4, text }
-    if (bal) L1r.push({ pri: 1, text: S(C.bal, balText) });
+    if (bal) L1r.push({ pri: 4, text: S(C.bal, balText) });
     L1r.push({ pri: 3, text: S(C.clock, clock) });
     if (dur) L1r.push({ pri: 3, text: S(C.muted, dur) });
 
