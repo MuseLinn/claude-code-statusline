@@ -77,6 +77,8 @@ if (process.platform === 'win32') {
 config.statusLine = {
   type: 'command',
   command: command,
+  refreshInterval: 10,
+  hideVimModeIndicator: true,
 };
 
 writeFileSync(SETTINGS_FILE, JSON.stringify(config, null, 2) + '\n', 'utf8');
@@ -88,8 +90,10 @@ log('✨ Setup complete!');
 log('Restart Claude Code to see the statusline.');
 console.log('');
 log('The statusline shows:');
-log('  Line 1: git branch . project dir . model . balance . duration');
-log('  Line 2: context bar [200K] . tokens (cache) output . session cost . total cost');
+log('  Line 1: git branch . repo link . project dir . model/agent . balance . clock');
+log('  Line 2: context bar [200K] . tokens (cache) . turn cost . total . code churn');
+console.log('');
+log('New in v0.5.0: clickable repo link, session name, agent name, thinking indicator');
 console.log('');
 log('Tip: Set your DeepSeek API key in settings.json env.ANTHROPIC_AUTH_TOKEN');
 log('  or export DEEP_SEEK_API_KEY_FOR_BALANCE in your shell profile.');
