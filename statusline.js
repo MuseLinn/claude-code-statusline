@@ -62,19 +62,26 @@ const C = {
 const Z = NC ? '' : '\x1b[0m';
 const S = (c, s) => NC ? s : '\x1b[' + c + 'm' + s + Z;
 const R = c => NC ? '' : '\x1b[' + c + 'm';
-const vlen = s => s.replace(/\x1b\[[0-9;]*m/g, '').length;
+const vlen = s => s.replace(/\x1b\[[0-9;]*m/g, '').replace(/\x1b\]8;;[^\x07]*\x07/g, '').length;
 
 // ANSI-safe truncation: never cut in the middle of an escape sequence
+// Handles SGR colors (\x1b[...m) and OSC 8 hyperlinks (\x1b]8;...\x07)
 function visTrunc(s, max) {
   if (vlen(s) <= max) return s;
   let out = '', vis = 0;
-  const re = /\x1b\[[0-9;]*m|./g;
+  const re = /\x1b\[[0-9;]*m|\x1b\]8;;[^\x07]*\x07|./g;
   let m;
   while ((m = re.exec(s)) && vis < max) {
     if (m[0].startsWith('\x1b')) out += m[0];
     else { out += m[0]; vis++; }
   }
-  return out + '\x1b[0m…';
+  // Close any open OSC 8 link before appending ellipsis
+  return out + '\x1b]8;;\x07\x1b[0m…';
+}
+
+// OSC 8 hyperlink: Cmd+click to open URL (terminal must support it)
+function link(url, text) {
+  return NC ? text : '\x1b]8;;' + url + '\x07' + text + '\x1b]8;;\x07';
 }
 
 function fnum(n) {
@@ -231,6 +238,14 @@ process.stdin.on('end', () => {
     const ef = I.effort?.level || '';
     const efTxt = ef ? S(ef === 'max' || ef === 'xhigh' ? C.efHi : C.efLo, ' ⚡' + (ef === 'max' || ef === 'xhigh' ? 'max' : 'high')) : '';
 
+    // ── session metadata ────────────────────────────────────────────────────
+    const sessionName = I.session_name || '';
+    const agentName = I.agent?.name || '';
+    const thinkingEnabled = I.thinking?.enabled || false;
+    const repoHost = I.workspace?.repo?.host || '';
+    const repoOwner = I.workspace?.repo?.owner || '';
+    const repoName = I.workspace?.repo?.name || '';
+
     // ── pricing ─────────────────────────────────────────────────────────────
     let p = PRICE['deepseek-v4-flash'];
     for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
@@ -377,11 +392,28 @@ process.stdin.on('end', () => {
     // ═════════════════════════════════════════════════════════════════════════
     const L1l = []; // left
     if (gitTag)   L1l.push(gitTag + wtTag + prTag);
+
+    // Repo link (clickable via OSC 8 — Cmd+click to open browser)
+    const hasRepo = repoHost && repoOwner && repoName;
+    if (hasRepo) {
+      const repoUrl = 'https://' + repoHost + '/' + repoOwner + '/' + repoName;
+      L1l.push(link(repoUrl, S(C.muted, repoOwner + '/' + repoName)));
+    }
+
     if (dir)      L1l.push(S(C.dir, dir));
+
+    // Session name (only when set via --name or /rename)
+    if (sessionName) L1l.push(S(C.muted, sessionName));
+
+    // Agent prefix (only when running under --agent)
+    const agentPrefix = agentName ? S(C.muted, '[' + agentName + '] ') : '';
+
+    // Thinking indicator (only when extended thinking is enabled)
+    const thinkingTag = thinkingEnabled ? S(C.muted, ' 🧠') : '';
 
     // model badge (padding inside bg, no extra spaces leaked)
     const badge = R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z;
-    L1l.push(badge + efTxt + vimTag);
+    L1l.push(agentPrefix + badge + efTxt + vimTag + thinkingTag);
 
     const L1r = []; // right
     if (bal)      L1r.push(S(C.bal, balText));
