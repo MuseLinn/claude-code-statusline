@@ -84,6 +84,13 @@ function link(url, text) {
   return NC ? text : '\x1b]8;;' + url + '\x07' + text + '\x1b]8;;\x07';
 }
 
+// Visible display width: CJK chars count as 2, ASCII as 1
+function visWidth(s) {
+  let w = 0;
+  for (const ch of s) w += /[\u{4e00}-\u{9fff}\u{3000}-\u{303f}\u{ff00}-\u{ffef}]/u.test(ch) ? 2 : 1;
+  return w;
+}
+
 function fnum(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
@@ -388,45 +395,67 @@ process.stdin.on('end', () => {
     const SEP = S(C.sep, '│');
 
     // ═════════════════════════════════════════════════════════════════════════
-    // LINE 1
+    // LINE 1 — tagged elements for priority-based collapse
     // ═════════════════════════════════════════════════════════════════════════
-    const L1l = []; // left
-    if (gitTag)   L1l.push(gitTag + wtTag + prTag);
+    const L1 = []; // { pri: 0-4, text: '' } — lower pri dropped first on overflow
+
+    if (gitTag) L1.push({ pri: 4, text: gitTag + wtTag + prTag });
 
     // Repo link (clickable via OSC 8 — Cmd+click to open browser)
     const hasRepo = repoHost && repoOwner && repoName;
     if (hasRepo) {
       const repoUrl = 'https://' + repoHost + '/' + repoOwner + '/' + repoName;
-      L1l.push(link(repoUrl, S(C.muted, repoOwner + '/' + repoName)));
+      let repoLabel = repoOwner + '/' + repoName;
+      if (vlen(repoLabel) > 35) repoLabel = repoOwner + '/' + repoName.slice(0, 24) + '…';
+      L1.push({ pri: 2, text: link(repoUrl, S(C.muted, repoLabel)) });
     }
 
-    if (dir)      L1l.push(S(C.dir, dir));
+    // Dir: when repo link visible, shorten to last segment (avoids redundancy)
+    if (dir) {
+      if (hasRepo) {
+        const base = dir.split('/').pop() || dir;
+        if (base !== '~') L1.push({ pri: 2, text: S(C.muted, base) });
+      } else {
+        L1.push({ pri: 3, text: S(C.dir, dir) });
+      }
+    }
 
-    // Session name (only when set via --name or /rename)
-    if (sessionName) L1l.push(S(C.muted, sessionName));
+    // Session name (only when set via --name or /rename); truncate if >20 visible
+    if (sessionName) {
+      let sn = sessionName;
+      if (visWidth(sn) > 20) {
+        while (visWidth(sn) > 18) sn = sn.slice(0, -1);
+        sn += '…';
+      }
+      L1.push({ pri: 1, text: S(C.muted, sn) });
+    }
 
-    // Agent prefix (only when running under --agent)
+    // Agent prefix
     const agentPrefix = agentName ? S(C.muted, '[' + agentName + '] ') : '';
 
-    // Thinking indicator (only when extended thinking is enabled)
+    // Thinking indicator
     const thinkingTag = thinkingEnabled ? S(C.muted, ' 🧠') : '';
 
-    // model badge (padding inside bg, no extra spaces leaked)
-    const badge = R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z;
-    L1l.push(agentPrefix + badge + efTxt + vimTag + thinkingTag);
+    // Model badge (always kept)
+    const L1model = agentPrefix + R(C.bbg) + R(C.bag) + ' ' + mlab + ' ' + Z + efTxt + vimTag + thinkingTag;
 
-    const L1r = []; // right
-    if (bal)      L1r.push(S(C.bal, balText));
-    L1r.push(S(C.clock, clock));
-    if (dur)      L1r.push(S(C.muted, dur));
+    // Right side items (bal is lowest priority for collapse)
+    const L1r = []; // { pri: 0-4, text }
+    if (bal) L1r.push({ pri: 1, text: S(C.bal, balText) });
+    L1r.push({ pri: 3, text: S(C.clock, clock) });
+    if (dur) L1r.push({ pri: 3, text: S(C.muted, dur) });
 
-    let line1 = L1l.concat(L1r).join(SEP);
-    if (vlen(line1) > col) {
-      // collapse: git + model + rightmost items only
-      const fb = L1l.concat(L1r.slice(-2));
-      line1 = fb.join(SEP);
-      if (vlen(line1) > col) line1 = visTrunc(line1, col);
+    // Priority collapse: build line1 within column width
+    function assembleL1(minPri) {
+      const parts = L1.filter(e => e.pri >= minPri).map(e => e.text);
+      parts.push(L1model);
+      parts.push(...L1r.filter(e => e.pri >= minPri).map(e => e.text));
+      return parts.join(SEP);
     }
+    let line1 = assembleL1(1);
+    if (vlen(line1) > col) line1 = assembleL1(2);   // drop session name + bal
+    if (vlen(line1) > col) line1 = assembleL1(3);   // drop repo + dir too
+    if (vlen(line1) > col) line1 = visTrunc(line1, col);  // hard cut
 
     // ═════════════════════════════════════════════════════════════════════════
     // LINE 2
