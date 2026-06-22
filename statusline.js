@@ -282,12 +282,17 @@ process.stdin.on('end', () => {
       if (hl && ti < s._lastIn) {
         // Context compression: cumulative counts reset, just skip addition
       } else {
-        // Guard: cache reads cannot exceed input tokens; if they do the API
-        // data is inconsistent (compression artifact), so clamp
-        const effCache = Math.min(tc, ti);
-        s.in = pi + ti; s.out = po + to; s.cache = pc + effCache;
+        // DeepSeek's Anthropic proxy reports input_tokens = NEW (miss) tokens,
+        // cache_read_input_tokens = CACHED (hit) prefix tokens — additive, not subset.
+        // Real Anthropic API: cache_read is subset of input_tokens.
+        // Auto-detect: cache_read > input → DeepSeek semantics, else Anthropic.
+        const dsSem = tc > ti;
+        const totalIn = dsSem ? ti + tc : ti;
+        const effCache = dsSem ? tc : Math.min(tc, ti);
+        s.in = pi + totalIn; s.out = po + to; s.cache = pc + effCache;
         s.turns = (s.turns || 0) + 1;
-        s.paid = (s.paid || 0) + ((ti - effCache) * p.i + effCache * p.c + to * p.o) / 1e6;
+        const uncached = totalIn - effCache;
+        s.paid = (s.paid || 0) + (uncached * p.i + effCache * p.c + to * p.o) / 1e6;
       }
     } else if (oc) {
       const d = Math.max(0, to - (s._lastOut || 0));
@@ -300,7 +305,10 @@ process.stdin.on('end', () => {
     wcache(cache);
 
     const sessCost = s.paid || 0;
-    const turnCost = ((Math.max(0, ti - tc)) * p.i + Math.min(tc, ti) * p.c + to * p.o) / 1e6;
+    const dsSem2 = tc > ti;
+    const tIn = dsSem2 ? ti + tc : ti;
+    const tCch = dsSem2 ? tc : Math.min(tc, ti);
+    const turnCost = ((tIn - tCch) * p.i + tCch * p.c + to * p.o) / 1e6;
     const cr = s.in > 0 ? Math.min(100, s.cache / s.in * 100).toFixed(1) : '0.0';
     const turns = s.turns || 0;
 
