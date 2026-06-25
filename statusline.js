@@ -375,15 +375,15 @@ process.stdin.on('end', () => {
           if (!win || win.status !== 'ok') continue;
           const lbl = { rolling: '5h', weekly: 'wk', monthly: 'mo' }[w] || w;
           const pct = Math.min(100, Math.max(0, win.usagePercent));
-          // 4-seg mini bar: ░░░░ style
-          const filled = Math.round(pct / 25);
-          const empty = 4 - filled;
+          // 8-seg bar: ▐████░░░░▌ with gradient
+          const filled = Math.round(pct * 0.08);
+          const empty = 8 - filled;
           const [r, g, b] = barGrad(100 - pct);
-          const barStr = rgb(r, g, b, '█'.repeat(filled)) + S('38;5;237', '░'.repeat(empty));
+          const barStr = S('38;5;240', '▐') + rgb(r, g, b, '█'.repeat(filled)) + S('38;5;237', '░'.repeat(empty)) + S('38;5;240', '▌');
           const pctStr = rgb(r, g, b, pad(pct, 2) + '%');
           parts.push(S(C.muted, lbl + ' ') + barStr + ' ' + pctStr);
         }
-        if (parts.length) line3 = parts.join(S(C.sep, ' ') + S(C.sep, ' '));
+        if (parts.length) line3 = parts.join('  ');
       }
     }
 
