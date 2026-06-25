@@ -278,7 +278,7 @@ process.stdin.on('end', () => {
       const candidates = [m.name.toLowerCase(), m.id.toLowerCase().replace(/\[.*?\]/g, '')].filter(Boolean);
       return candidates.some(c => loName.includes(c) || c.includes(loName) || loMid.includes(c) || c.includes(loMid));
     });
-    const mlab = tm ? tm.t + ' → ' + short : short;
+    const mlab = tm ? tm.t + ' → ' + (tm.name || short) : short;
 
     // ── effort ──────────────────────────────────────────────────────────────
     const ef = I.effort?.level || '';
