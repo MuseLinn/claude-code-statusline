@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Install deepseek-statusline — copies script and writes global settings.json
+description: Install claude-code-statusline — copies script and writes global settings.json
 ---
 
 Do the following step by step:
