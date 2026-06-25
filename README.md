@@ -1,44 +1,45 @@
-# deepseek-statusline
+# claude-code-statusline
 
 >  **Recommended install**: via [MuseLinn/muselinn-garage](https://github.com/MuseLinn/muselinn-garage) — one marketplace for all your Claude Code tools.
 
-A [Claude Code](https://code.claude.com/) statusline plugin for DeepSeek models.
-Anthropic-inspired warm palette, colour-coded git porcelain status, TrueColor gradient context bar, per-turn cost tracking, code churn, and more.
+A [Claude Code](https://code.claude.com/) statusline plugin with Anthropic-warm palette, supporting DeepSeek and opencode go providers.
 
 ```
-master │ ~ │ Opus → deepseek-v4-pro ⚡max │ ¥8.05 │ 14:32 │ 1h23m
-▐████▌░░░░░▌64% │ in:1.7M │ 📦54.8M 96.9% │ out:162.0K │ ¥0.0092 │ ·291 │ Total ¥7.58 │ +10740 -23
+main │ ~ │ Opus → mimo-v2.5 ⚡high │ 14:32 │ 1h23m
+▐███████▌░░░░░░░▌ 75% │ 628.6K in 10.0K out │ 24 turns │ +128 -38
+5h ▐██░░░░░░▌ 7%  wk ▐████░░░░░░░░▌ 10%  mo ▐██░░░░░░░░░░░░░░▌ 5%
 ```
 
 ## Features
 
-| Section | What it shows |
-|---|---|
-| Git branch | colour-coded porcelain status: `M` amber, `A` green, `D` rust, `R` blue, `N` grey |
-| Project dir | last 2+ path segments, auto `~` for home, long names truncated |
-| Model badge | bg-block: tier → DeepSeek model + effort level |
-| 💳 Balance | DeepSeek account balance, cached 5 min |
-| ⏱ Clock + duration | real-time clock + session elapsed |
-| Context bar | 80-seg TrueColor gradient `▐████▌░░░░░▌` (sage→amber→rust) |
-| Token counts | `in:1.7M 📦54.8M 96.9% out:162.0K` — input/cache/output |
-| 💰 Cost | this turn cost + session cumulative |
-| ·Turns | `·291` warm grey dot notation |
-| Δ Code churn | lines added / removed this session |
-| Vim mode / Worktree / PR | auto-appear when relevant |
+| Feature | DeepSeek | opencode go | Anthropic |
+|---|---|---|---|
+| Context bar (80-seg TrueColor gradient) | ✅ | ✅ | ✅ |
+| Token counts (in/out) | ✅ | ✅ | ✅ |
+| Cache hit % | ✅ | — | — |
+| Cost tracking (¥) | ✅ | — | — |
+| Balance (DeepSeek API) | ✅ | — | — |
+| Subscription usage (5h/wk/mo) | — | ✅ | — |
+| Model tier badge (Sonnet → xxx) | ✅ | ✅ | ✅ |
+| Git branch + porcelain status | ✅ | ✅ | ✅ |
+| Repo link (OSC 8 clickable) | ✅ | ✅ | ✅ |
+| Session name / Agent prefix | ✅ | ✅ | ✅ |
+| Effort indicator | ✅ | ✅ | ✅ |
+| Code churn (+N/-N) | ✅ | ✅ | ✅ |
+| Vim mode / Worktree / PR | ✅ | ✅ | ✅ |
 
 ## Requirements
 
 - [Claude Code](https://code.claude.com/) v2.1.132+
 - Node.js 18+
-- DeepSeek API key
 
 ## Installation
 
 ### Via plugin marketplace
 
 ```bash
-claude plugin marketplace add MuseLinn/deepseek-statusline
-claude plugin install deepseek-statusline
+claude plugin marketplace add MuseLinn/muselinn-garage
+claude plugin install claude-code-statusline@muselinn-garage
 /deepseek-statusline:setup
 ```
 
@@ -47,8 +48,8 @@ Restart Claude Code.
 ### Manual (copy file)
 
 ```bash
-git clone https://github.com/MuseLinn/deepseek-statusline
-cp deepseek-statusline/statusline.js ~/.claude/statusline.js
+git clone https://github.com/MuseLinn/claude-code-statusline
+cp claude-code-statusline/statusline.js ~/.claude/statusline.js
 ```
 
 Then add to `~/.claude/settings.local.json`:
@@ -75,29 +76,44 @@ Then add to `~/.claude/settings.local.json`:
 
 ## Configuration
 
-The statusline reads your DeepSeek API key in order:
+### DeepSeek
 
-1. `DEEP_SEEK_API_KEY_FOR_BALANCE` env var
-2. `ANTHROPIC_AUTH_TOKEN` from `settings.json` → `env`
-3. `ANTHROPIC_AUTH_TOKEN` env var
-
-Recommended `~/.claude/settings.json`:
+Set your API key for balance tracking:
 
 ```json
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "sk-your-deepseek-key",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash[1M]",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1M]",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
-    "DISABLE_AUTOUPDATER": "1",
-    "ENABLE_TOOL_SEARCH": "true"
+    "ANTHROPIC_AUTH_TOKEN": "sk-your-deepseek-key"
   }
 }
 ```
 
-### Pricing (CNY per 1M tokens)
+### opencode go
+
+Enable subscription usage tracking (LINE 3 shows 5h/wk/mo progress bars):
+
+1. Visit https://opencode.ai, sign in
+2. Open DevTools → Application → Cookies → copy the `auth` value
+3. Add to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "OPENCODE_GO_ENABLED": "true",
+    "OPENCODE_GO_AUTH_COOKIE": "Fe26.2**...",
+    "OPENCODE_GO_WORKSPACE_ID": "wrk_..."
+  }
+}
+```
+
+### Anthropic
+
+No additional config needed — context bar and tokens work out of the box.
+
+## Pricing
+
+### DeepSeek (¥/1M tokens)
 
 | Model | Input | Cached | Output |
 |---|---|---|---|
@@ -106,20 +122,17 @@ Recommended `~/.claude/settings.json`:
 
 Edit the `PRICE` object in `statusline.js` to add or update models.
 
-### Effort level
+### opencode go
 
-| Claude level | Display |
-|---|---|
-| low / medium / high | `⚡high` |
-| xhigh / max | `⚡max` |
+Usage is fetched from opencode.ai via HTML scraping. No local pricing needed.
 
 ## How it works
 
 1. Claude Code pipes session JSON to the script via stdin every ~300ms
 2. Script parses model, context window, tokens, effort, and session info
 3. Session state persisted in `~/.claude/deepseek-cache.json`, auto-cleaned after 7 days
-4. Balance fetched from DeepSeek `/user/balance`, cached 5 minutes
-5. Burn rate: snapshot every 10s, rolling 10-min window → active consumption rate
+4. DeepSeek: balance fetched from `/user/balance`, cached 5 min
+5. opencode go: usage scraped from workspace page, cached 10s
 
 ## License
 

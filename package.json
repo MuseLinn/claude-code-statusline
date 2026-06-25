@@ -1,7 +1,7 @@
 {
-  "name": "deepseek-statusline",
-  "version": "0.1.0",
-  "description": "DeepSeek optimised statusline for Claude Code — balance, cost, tokens, context monitoring",
+  "name": "claude-code-statusline",
+  "version": "0.5.0",
+  "description": "Multi-provider statusline for Claude Code — DeepSeek, opencode go, Anthropic. Context bar, cost, tokens, git porcelain.",
   "license": "MIT",
   "author": "",
   "type": "module",

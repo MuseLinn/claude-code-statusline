@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // ============================================================================
-// Claude Code Statusline — DeepSeek Edition
-// Design: left→right narrative, semantic color, conditional activation,
-//         TrueColor gradient bar, powerline-style separators
+// Claude Code Statusline — Multi-Provider Edition
+// Anthropic-warm palette, git porcelain, TrueColor gradient bar,
+// DeepSeek ¥ tracking + opencode go subscription usage
 // ============================================================================
 
 const path = require('path');
@@ -301,8 +301,6 @@ process.stdin.on('end', () => {
     // ── pricing ─────────────────────────────────────────────────────────────
     let p = PRICE['deepseek-v4-flash'];
     for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
-    // For non-DeepSeek providers, pricing doesn't apply — use Claude Code's total_cost_usd
-    const isDeepSeekPricing = isDeepSeek && p !== PRICE['deepseek-v4-flash'];
 
     // ── context ─────────────────────────────────────────────────────────────
     let rem = 100;
@@ -463,9 +461,6 @@ process.stdin.on('end', () => {
     if (added > 0 || removed > 0) {
       churn = (added > 0 ? S(C.add, '+' + added) : '') + (added > 0 && removed > 0 ? S(C.muted, ' ') : '') + (removed > 0 ? S(C.del, '-' + removed) : '');
     }
-
-    // Note: burn rate removed — per-turn cost ¥x.xxxx is more reliable
-    // than a short-window estimate that spikes after idle periods.
 
     // ── width ───────────────────────────────────────────────────────────────
     const col = parseInt(process.env.COLUMNS || '120', 10);
