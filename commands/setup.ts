@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// deepseek-statusline setup command
-// Run: /deepseek-statusline:setup inside Claude Code
+// claude-code-statusline setup command
+// Run: /claude-code-statusline:setup inside Claude Code
 
 import { copyFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -12,7 +12,7 @@ const SETTINGS_FILE = join(CLAUDE_DIR, 'settings.local.json');
 const SCRIPT_TARGET = join(CLAUDE_DIR, 'statusline.js');
 
 function log(msg: string) {
-  console.log(`\x1b[36m▶ deepseek-statusline\x1b[0m ${msg}`);
+  console.log(`\x1b[36m▶ claude-code-statusline\x1b[0m ${msg}`);
 }
 
 function success(msg: string) {
