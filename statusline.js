@@ -23,7 +23,7 @@ const NC = !!process.env.NO_COLOR || !!process.env.CLAUDE_CODE_NO_COLOR;
 function detectProvider(env) {
   const base = (env.ANTHROPIC_BASE_URL || '').toLowerCase();
   if (base.includes('api.deepseek.com')) return 'deepseek';
-  if (base.includes('opencode.ai'))      return 'opencode';
+  if (base.includes('opencode.ai') || env.OPENCODE_GO_AUTH_COOKIE) return 'opencode';
   return 'anthropic';
 }
 
