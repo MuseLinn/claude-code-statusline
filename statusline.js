@@ -489,25 +489,14 @@ process.stdin.on('end', () => {
     tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
     L2.push(tks);
 
-    // Turn cost — use Claude Code's total_cost_usd for non-DeepSeek providers
-    if (isDeepSeek) {
-      L2.push(S(C.cost, '¥' + fcny(turnCost)));
-    } else {
-      // Fallback: use Claude Code's client-side cost estimate
-      const ccCost = I.cost?.total_cost_usd || 0;
-      if (ccCost > 0) L2.push(S(C.cost, '$' + ccCost.toFixed(4)));
-    }
+    // Cost (DeepSeek only — ¥ pricing)
+    if (isDeepSeek) L2.push(S(C.cost, '¥' + fcny(turnCost)));
 
     // Turns
     if (turns > 0) L2.push(S('38;5;144', turns + ' turns'));
 
-    // Total — use Claude Code's total_cost_usd for non-DeepSeek providers
-    if (isDeepSeek) {
-      if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
-    } else {
-      const ccCost = I.cost?.total_cost_usd || 0;
-      if (ccCost > 0.0001) L2.push(S('38;5;180', 'Total $' + ccCost.toFixed(4)));
-    }
+    // Total (DeepSeek only)
+    if (isDeepSeek && sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
 
     // Churn
     if (churn) L2.push(churn);
