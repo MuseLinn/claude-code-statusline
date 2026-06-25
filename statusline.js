@@ -141,7 +141,7 @@ let _cache = null, _lw = 0;
 function rcache() {
   if (_cache) return _cache;
   const c = rjson(CACHE);
-  return _cache = (c && c.sessions) ? c : { sessions: {}, balance: '', balanceTs: 0 };
+  return _cache = (c && c.sessions) ? c : { sessions: {}, balance: '', balanceTs: 0, ocUsage: null, ocUsageTs: 0 };
 }
 function wcache(c) {
   const n = Date.now();
@@ -150,7 +150,29 @@ function wcache(c) {
   wjson(CACHE, c);
 }
 
-// ---- balance -----------------------------------------------------------------
+// ---- opencode go usage -------------------------------------------------------
+let _ocf = false;
+function getOCUsage(authCookie, wsId) {
+  if (!authCookie || !wsId) return null;
+  const c = rcache();
+  if (c.ocUsage && c.ocUsageTs && Date.now() - c.ocUsageTs < BAL_TTL) return c.ocUsage;
+  if (_ocf) return c.ocUsage || null;
+  _ocf = true;
+  const cookie = authCookie.startsWith('auth=') ? authCookie : 'auth=' + authCookie;
+  require('https').get({
+    hostname: 'console.opencode.ai', path: '/zen/go/v1/usage',
+    headers: { Cookie: cookie, Accept: 'application/json' }, timeout: 5000
+  }, r => {
+    let ck = []; r.on('data', d => ck.push(d)); r.on('end', () => {
+      _ocf = false;
+      try {
+        const u = JSON.parse(Buffer.concat(ck));
+        if (u && u.rolling) { const c2 = rcache(); c2.ocUsage = u; c2.ocUsageTs = Date.now(); c2._forceWrite = true; wcache(c2); }
+      } catch {}
+    });
+  }).on('error', () => { _ocf = false; }).end();
+  return c.ocUsage || null;
+}
 let _bf = false;
 function getBal(apiKey) {
   if (!apiKey || apiKey === 'PROXY_MANAGED') return '';
@@ -245,17 +267,16 @@ process.stdin.on('end', () => {
     // ── model ───────────────────────────────────────────────────────────────
     const short = model.includes(',') ? model.split(',')[1].trim() : model.replace(/\[.*?\]/g, '').trim();
     const TM = [
-      { t: 'Sonnet', d: env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || env.ANTHROPIC_DEFAULT_SONNET_MODEL || '', c: C.tierS },
-      { t: 'Opus',   d: env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL || '',     c: C.tierO },
-      { t: 'Haiku',  d: env.ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME || env.ANTHROPIC_DEFAULT_HAIKU_MODEL || '',   c: C.tierH },
+      { t: 'Sonnet', name: env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || '', id: env.ANTHROPIC_DEFAULT_SONNET_MODEL || '', c: C.tierS },
+      { t: 'Opus',   name: env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || '',   id: env.ANTHROPIC_DEFAULT_OPUS_MODEL || '',   c: C.tierO },
+      { t: 'Haiku',  name: env.ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME || '',  id: env.ANTHROPIC_DEFAULT_HAIKU_MODEL || '',  c: C.tierH },
     ];
-    // Match against both display_name and model.id
+    // Match against display_name, model.id, _MODEL_NAME, and _MODEL
     const loName = short.toLowerCase();
-    const loMid  = mid.toLowerCase();
+    const loMid  = mid.toLowerCase().replace(/\[.*?\]/g, '');
     const tm = TM.find(m => {
-      if (!m.d) return false;
-      const d = m.d.toLowerCase().replace(/\[.*?\]/g, '');
-      return loName.includes(d) || d.includes(loName) || loMid.includes(d) || d.includes(loMid);
+      const candidates = [m.name.toLowerCase(), m.id.toLowerCase().replace(/\[.*?\]/g, '')].filter(Boolean);
+      return candidates.some(c => loName.includes(c) || c.includes(loName) || loMid.includes(c) || c.includes(loMid));
     });
     const mlab = tm ? tm.t + ' → ' + short : short;
 
@@ -324,12 +345,28 @@ process.stdin.on('end', () => {
     const cr = s.in > 0 ? Math.min(100, s.cache / s.in * 100).toFixed(1) : '0.0';
     const turns = s.turns || 0;
 
-    // ── balance (DeepSeek only) ─────────────────────────────────────────────
+    // ── balance / usage (provider-aware) ─────────────────────────────────────
     let bal = '', balText = '';
     if (isDeepSeek) {
       bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
       const balAge = Date.now() - (rcache().balanceTs || 0);
       balText = balAge > BAL_STALE ? bal + S(C.muted, '~') : bal;
+    } else if (provider === 'opencode') {
+      const ocAuth = env.OPENCODE_GO_AUTH_COOKIE || '';
+      const ocWsid = env.OPENCODE_GO_WORKSPACE_ID || '';
+      const usage = getOCUsage(ocAuth, ocWsid);
+      if (usage) {
+        const parts = [];
+        for (const w of ['rolling', 'weekly', 'monthly']) {
+          const win = usage[w];
+          if (!win || win.status !== 'ok') continue;
+          const lbl = { rolling: '5h', weekly: 'wk', monthly: 'mo' }[w] || w;
+          const pct = win.usagePercent;
+          const clr = pct > 80 ? C.warn : pct > 50 ? C.cost : C.muted;
+          parts.push(S(clr, lbl + ' ' + pct + '%'));
+        }
+        if (parts.length) balText = parts.join(' ');
+      }
     }
 
     // ── dir ─────────────────────────────────────────────────────────────────
