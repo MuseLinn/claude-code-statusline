@@ -249,8 +249,14 @@ process.stdin.on('end', () => {
       { t: 'Opus',   d: env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL || '',     c: C.tierO },
       { t: 'Haiku',  d: env.ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME || env.ANTHROPIC_DEFAULT_HAIKU_MODEL || '',   c: C.tierH },
     ];
-    const lo = short.toLowerCase();
-    const tm = TM.find(m => m.d && m.d.toLowerCase().replace(/\[.*?\]/g, '').includes(lo));
+    // Match against both display_name and model.id
+    const loName = short.toLowerCase();
+    const loMid  = mid.toLowerCase();
+    const tm = TM.find(m => {
+      if (!m.d) return false;
+      const d = m.d.toLowerCase().replace(/\[.*?\]/g, '');
+      return loName.includes(d) || d.includes(loName) || loMid.includes(d) || d.includes(loMid);
+    });
     const mlab = tm ? tm.t + ' → ' + short : short;
 
     // ── effort ──────────────────────────────────────────────────────────────
