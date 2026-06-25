@@ -302,13 +302,17 @@ process.stdin.on('end', () => {
     let p = PRICE['deepseek-v4-flash'];
     for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
 
-    // ── context ─────────────────────────────────────────────────────────────
-    let rem = 100;
-    if (cw.remaining_percentage != null) rem = Math.round(cw.remaining_percentage);
-    else if (cw.used_percentage != null) rem = Math.round(100 - cw.used_percentage);
-    else if (cw.total_input_tokens && cw.context_window_size) {
-      rem = Math.round(100 - (cw.total_input_tokens / cw.context_window_size * 100));
+    // ── context (used %) ───────────────────────────────────────────────────
+    // Primary: used_percentage from API. Fallback: total_input_tokens/window_size.
+    // Null when no API response yet — show empty state instead of 100%.
+    let usedPct = null;
+    if (cw.used_percentage != null) usedPct = Math.round(cw.used_percentage);
+    else if (cw.remaining_percentage != null) usedPct = Math.round(100 - cw.remaining_percentage);
+    else if (cw.total_input_tokens && cw.context_window_size && cw.context_window_size > 0) {
+      usedPct = Math.round(cw.total_input_tokens / cw.context_window_size * 100);
     }
+    const ctxTokens = cw.total_input_tokens || 0;
+    const ctxMax = cw.context_window_size || 0;
 
     // ── tokens ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
@@ -531,24 +535,37 @@ process.stdin.on('end', () => {
     // ═════════════════════════════════════════════════════════════════════════
     const L2 = [];
 
-    // Progress: ▐████▌░░░░░▌ 73%
-    const prog = S('38;5;240', '▐') + bar(rem) + S('38;5;240', '▌') + (() => {
-      const [r, g, b] = barGrad(rem);
-      return rgb(r, g, b, pad(rem, 3) + '%');
-    })();
-    const ctxWarn = rem <= 15 ? S(C.warn, ' ⚠') : '';
+    // Progress bar: used % (fills left→right as context fills up)
+    // When usedPct is null (no API response yet), show empty state
+    let prog, ctxWarn = '';
+    if (usedPct !== null) {
+      // barGrad: 0% used = sage (safe) → 100% used = rust (danger)
+      // barGrad input is "remaining %" so we pass (100 - usedPct)
+      prog = S('38;5;240', '▐') + bar(usedPct) + S('38;5;240', '▌') + (() => {
+        const [r, g, b] = barGrad(100 - usedPct);
+        return rgb(r, g, b, pad(usedPct, 3) + '%');
+      })();
+      ctxWarn = usedPct >= 85 ? S(C.warn, ' ⚠') : '';
+    } else {
+      prog = S('38;5;240', '▐') + bar(0) + S('38;5;240', '▌') + S('38;5;243', ' ...');
+    }
     L2.push(prog + ctxWarn);
 
-    // Tokens
-    let tks;
-    if (isDeepSeek) {
-      tks = S(C.tIn, fnum(s.in) + ' in');
-      if (pc > 0) tks += ' ' + S(C.tCch, '📦 ' + fnum(pc) + ' ' + cr + '%');
-      tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
+    // Context detail: 263K/1M tokens (matching /context display)
+    if (ctxTokens > 0 && ctxMax > 0) {
+      L2.push(S(C.tIn, fnum(ctxTokens) + '/' + fnum(ctxMax)));
     } else {
-      tks = S(C.tIn, fnum(s.in) + ' in') + ' ' + S(C.tOut, fnum(s.out) + ' out');
+      // Fallback: session-level token counts
+      let tks;
+      if (isDeepSeek) {
+        tks = S(C.tIn, fnum(s.in) + ' in');
+        if (pc > 0) tks += ' ' + S(C.tCch, '📦 ' + fnum(pc) + ' ' + cr + '%');
+        tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
+      } else {
+        tks = S(C.tIn, fnum(s.in) + ' in') + ' ' + S(C.tOut, fnum(s.out) + ' out');
+      }
+      L2.push(tks);
     }
-    L2.push(tks);
 
     // Cost (DeepSeek only — ¥ pricing)
     if (isDeepSeek) L2.push(S(C.cost, '¥' + fcny(turnCost)));
