@@ -484,9 +484,14 @@ process.stdin.on('end', () => {
     L2.push(prog + ctxWarn);
 
     // Tokens
-    let tks = S(C.tIn, fnum(s.in) + ' in');
-    if (pc > 0) tks += ' ' + S(C.tCch, '📦 ' + fnum(pc) + ' ' + cr + '%');
-    tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
+    let tks;
+    if (isDeepSeek) {
+      tks = S(C.tIn, fnum(s.in) + ' in');
+      if (pc > 0) tks += ' ' + S(C.tCch, '📦 ' + fnum(pc) + ' ' + cr + '%');
+      tks += ' ' + S(C.tOut, fnum(s.out) + ' out');
+    } else {
+      tks = S(C.tIn, fnum(s.in) + ' in') + ' ' + S(C.tOut, fnum(s.out) + ' out');
+    }
     L2.push(tks);
 
     // Cost (DeepSeek only — ¥ pricing)
