@@ -1,7 +1,7 @@
 # Claude Code — DeepSeek Configuration
 
 > Synced from live config on **2026-06-08**
-> Plugin: [MuseLinn/deepseek-statusline](https://github.com/MuseLinn/deepseek-statusline)
+> Plugin: [MuseLinn/claude-code-statusline](https://github.com/MuseLinn/claude-code-statusline)
 > Backup: `~/.claude/backups/20260608-140722/`
 
 ---
@@ -94,19 +94,19 @@
 | `~/.claude/statusline.js` | The statusline script |
 | `~/.claude/deepseek-cache.json` | Token/balance cache |
 | `~/.claude/backups/20260608-140722/` | Full config backup (3 files) |
-| `~/projects/deepseek-statusline/` | Plugin development repo |
+| `~/projects/claude-code-statusline/` | Plugin development repo |
 
 ---
 
 ## Plugin (for future updates)
 
-**GitHub:** https://github.com/MuseLinn/deepseek-statusline
+**GitHub:** https://github.com/MuseLinn/claude-code-statusline
 
 ```bash
 # Install
-claude plugin marketplace add MuseLinn/deepseek-statusline
-claude plugin install deepseek-statusline
-/deepseek-statusline:setup
+claude plugin marketplace add MuseLinn/claude-code-statusline
+claude plugin install claude-code-statusline
+/claude-code-statusline:setup
 
 # Restart Claude Code after setup
 ```
