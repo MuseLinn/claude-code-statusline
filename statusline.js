@@ -19,11 +19,65 @@ const GIT_TTL = 3 * 1000;
 const IO_MIN = 1500;
 const NC = !!process.env.NO_COLOR || !!process.env.CLAUDE_CODE_NO_COLOR;
 
-// ---- DeepSeek pricing (¥/1M tokens) -----------------------------------------
-const PRICE = {
-  'deepseek-v4-flash': { i: 1, c: 0.02, o: 2 },
-  'deepseek-v4-pro':   { i: 3, c: 0.025, o: 6 },
+// ---- provider detection ------------------------------------------------------
+function detectProvider(env) {
+  const base = (env.ANTHROPIC_BASE_URL || '').toLowerCase();
+  if (base.includes('api.deepseek.com')) return 'deepseek';
+  if (base.includes('opencode.ai'))      return 'opencode';
+  return 'anthropic';
+}
+
+// ---- pricing tables (per 1M tokens) ------------------------------------------
+// DeepSeek: ¥/1M tokens
+const PRICE_DEEPSEEK = {
+  'deepseek-v4-flash': { i: 1, c: 0.02, o: 2, sym: '¥' },
+  'deepseek-v4-pro':   { i: 3, c: 0.025, o: 6, sym: '¥' },
 };
+// OpenCode Go: USD/1M tokens
+const PRICE_OPENCODE = {
+  'deepseek-v4-flash':  { i: 0.14, c: 0.0028, o: 0.28, sym: '$' },
+  'deepseek-v4-pro':    { i: 1.00, c: 0.01, o: 3.00, sym: '$' },
+  'mimo-v2.5':          { i: 0.14, c: 0.0028, o: 0.28, sym: '$' },
+  'glm-5.2':            { i: 1.40, c: 0.26, o: 4.40, sym: '$' },
+  'glm-5.1':            { i: 1.00, c: 0.20, o: 3.00, sym: '$' },
+  'kimi-k2.7-code':     { i: 1.00, c: 0.10, o: 3.00, sym: '$' },
+  'kimi-k2.6':          { i: 0.60, c: 0.06, o: 1.80, sym: '$' },
+  'qwen3.7-max':        { i: 2.50, c: 0.50, o: 7.50, sym: '$' },
+  'qwen3.7-plus':       { i: 0.80, c: 0.16, o: 2.40, sym: '$' },
+  'minimax-m3':         { i: 2.00, c: 0.40, o: 6.00, sym: '$' },
+};
+// Anthropic: use Claude Code's cost.total_cost_usd (no local pricing needed)
+const PRICE_ANTHROPIC = {
+  'claude-sonnet-4-6':  { i: 3.00, c: 0.30, o: 15.00, sym: '$' },
+  'claude-opus-4-8':    { i: 15.00, c: 1.50, o: 75.00, sym: '$' },
+  'claude-haiku-4-5':   { i: 0.80, c: 0.08, o: 4.00, sym: '$' },
+};
+
+const PRICING = { deepseek: PRICE_DEEPSEEK, opencode: PRICE_OPENCODE, anthropic: PRICE_ANTHROPIC };
+
+function matchPrice(mid, model, provider) {
+  const table = PRICING[provider] || PRICING.opencode;
+  const lo = (mid + ' ' + model).toLowerCase();
+  for (const k in table) if (Object.hasOwn(table, k) && lo.includes(k)) return table[k];
+  // fallback: first entry of the provider's table
+  const first = Object.values(table)[0];
+  return first || { i: 0, c: 0, o: 0, sym: '$' };
+}
+
+// ---- opencode go rate limits -------------------------------------------------
+// Sliding windows: $12/5h, $30/week, $60/month
+const OC_WINDOWS = [
+  { label: '5h',  ms: 5 * 3600 * 1000,    limit: 12 },
+  { label: 'wk',  ms: 7 * 86400 * 1000,   limit: 30 },
+  { label: 'mo',  ms: 30 * 86400 * 1000,  limit: 60 },
+];
+function calcRateLimits(log) {
+  const now = Date.now();
+  return OC_WINDOWS.map(w => {
+    const spent = log.filter(r => r.ts > now - w.ms).reduce((s, r) => s + r.cost, 0);
+    return { label: w.label, remaining: Math.max(0, w.limit - spent), limit: w.limit };
+  });
+}
 
 // ---- Anthropic-inspired warm palette -----------------------------------------
 const C = {
@@ -133,12 +187,17 @@ let _cache = null, _lw = 0;
 function rcache() {
   if (_cache) return _cache;
   const c = rjson(CACHE);
-  return _cache = (c && c.sessions) ? c : { sessions: {}, balance: '', balanceTs: 0 };
+  return _cache = (c && c.sessions) ? c : { sessions: {}, balance: '', balanceTs: 0, requestLog: [] };
 }
 function wcache(c) {
   const n = Date.now();
   if (!c._forceWrite && n - _lw < IO_MIN) return;
   _lw = n; c._forceWrite = false;
+  // Prune request log: keep last 30 days only
+  if (c.requestLog) {
+    const cutoff = Date.now() - 30 * 86400 * 1000;
+    c.requestLog = c.requestLog.filter(r => r.ts > cutoff);
+  }
   wjson(CACHE, c);
 }
 
@@ -230,6 +289,9 @@ process.stdin.on('end', () => {
 
     const env = sets().env || {};
 
+    // ── provider detection ──────────────────────────────────────────────────
+    const provider = detectProvider(env);
+
     // ── model ───────────────────────────────────────────────────────────────
     const short = model.includes(',') ? model.split(',')[1].trim() : model.replace(/\[.*?\]/g, '').trim();
     const TM = [
@@ -252,9 +314,9 @@ process.stdin.on('end', () => {
     const repoOwner = I.workspace?.repo?.owner || '';
     const repoName = I.workspace?.repo?.name || '';
 
-    // ── pricing ─────────────────────────────────────────────────────────────
-    let p = PRICE['deepseek-v4-flash'];
-    for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
+    // ── pricing (provider-aware) ────────────────────────────────────────────
+    const p = matchPrice(mid, model, provider);
+    const CUR = p.sym; // '¥' for deepseek, '$' for opencode/anthropic
 
     // ── context ─────────────────────────────────────────────────────────────
     let rem = 100;
@@ -267,9 +329,10 @@ process.stdin.on('end', () => {
 
     // ── session ─────────────────────────────────────────────────────────────
     const cache = rcache();
+    if (!cache.requestLog) cache.requestLog = [];
     let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
     if (s.paid === undefined && (s.in || s.cache || s.out)) {
-      const ec = Math.min(s.cache, s.in); // clamp: cache can't exceed input (corrupted data)
+      const ec = Math.min(s.cache, s.in);
       s.paid = ((s.in - ec) * p.i + ec * p.c + s.out * p.o) / 1e6;
     }
     if (s.paid === undefined) s.paid = 0;
@@ -282,21 +345,23 @@ process.stdin.on('end', () => {
       if (hl && ti < s._lastIn) {
         // Context compression: cumulative counts reset, just skip addition
       } else {
-        // DeepSeek's Anthropic proxy reports input_tokens = NEW (miss) tokens,
-        // cache_read_input_tokens = CACHED (hit) prefix tokens — additive, not subset.
-        // Real Anthropic API: cache_read is subset of input_tokens.
-        // Auto-detect: cache_read > input → DeepSeek semantics, else Anthropic.
-        const dsSem = tc > ti;
-        const totalIn = dsSem ? ti + tc : ti;
-        const effCache = dsSem ? tc : Math.min(tc, ti);
-        s.in = pi + totalIn; s.out = po + to; s.cache = pc + effCache;
+        const effCache = Math.min(tc, ti);
+        s.in = pi + ti; s.out = po + to; s.cache = pc + effCache;
         s.turns = (s.turns || 0) + 1;
-        const uncached = totalIn - effCache;
-        s.paid = (s.paid || 0) + (uncached * p.i + effCache * p.c + to * p.o) / 1e6;
+        const turnCostCalc = ((ti - effCache) * p.i + effCache * p.c + to * p.o) / 1e6;
+        s.paid = (s.paid || 0) + turnCostCalc;
+        // Log request for rate limit tracking (opencode go)
+        if (provider === 'opencode' && turnCostCalc > 0) {
+          cache.requestLog.push({ ts: Date.now(), cost: turnCostCalc });
+        }
       }
     } else if (oc) {
       const d = Math.max(0, to - (s._lastOut || 0));
-      s.out = po + d; s.paid = (s.paid || 0) + (d * p.o) / 1e6;
+      const dCost = (d * p.o) / 1e6;
+      s.out = po + d; s.paid = (s.paid || 0) + dCost;
+      if (provider === 'opencode' && dCost > 0) {
+        cache.requestLog.push({ ts: Date.now(), cost: dCost });
+      }
     }
     s._lastIn = ti; s._lastOut = to; s._lastCache = tc; s.ts = Date.now();
     cache.sessions[sid] = s;
@@ -305,17 +370,26 @@ process.stdin.on('end', () => {
     wcache(cache);
 
     const sessCost = s.paid || 0;
-    const dsSem2 = tc > ti;
-    const tIn = dsSem2 ? ti + tc : ti;
-    const tCch = dsSem2 ? tc : Math.min(tc, ti);
-    const turnCost = ((tIn - tCch) * p.i + tCch * p.c + to * p.o) / 1e6;
+    const turnCost = ((Math.max(0, ti - tc)) * p.i + Math.min(tc, ti) * p.c + to * p.o) / 1e6;
     const cr = s.in > 0 ? Math.min(100, s.cache / s.in * 100).toFixed(1) : '0.0';
     const turns = s.turns || 0;
 
-    const bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
-    // Show staleness: balance older than BAL_STALE gets a ~ suffix
-    const balAge = Date.now() - (rcache().balanceTs || 0);
-    const balText = balAge > BAL_STALE ? bal + S(C.muted, '~') : bal;
+    // ── balance (provider-aware) ────────────────────────────────────────────
+    let bal = '', balText = '';
+    if (provider === 'deepseek') {
+      bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
+      const balAge = Date.now() - (rcache().balanceTs || 0);
+      balText = balAge > BAL_STALE ? bal + S(C.muted, '~') : bal;
+    } else if (provider === 'opencode') {
+      // Rate limits: 5h/$12, wk/$30, mo/$60
+      const rl = calcRateLimits(cache.requestLog);
+      balText = rl.map(r => {
+        const pct = r.remaining / r.limit;
+        const clr = pct < 0.15 ? C.warn : pct < 0.4 ? C.cost : C.muted;
+        return S(clr, r.label + ' $' + r.remaining.toFixed(1));
+      }).join(' ');
+    }
+    // Anthropic: no local balance tracking (use rate_limits field if available)
 
     // ── dir ─────────────────────────────────────────────────────────────────
     const raw = I.workspace?.project_dir || I.workspace?.current_dir || I.cwd || process.cwd();
@@ -481,13 +555,13 @@ process.stdin.on('end', () => {
     L2.push(tks);
 
     // Turn cost
-    L2.push(S(C.cost, '¥' + fcny(turnCost)));
+    L2.push(S(C.cost, CUR + fcny(turnCost)));
 
     // Turns
     if (turns > 0) L2.push(S('38;5;144', turns + ' turns'));
 
     // Total
-    if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
+    if (sessCost > 0.001) L2.push(S('38;5;180', 'Total ' + CUR + fcny(sessCost)));
 
     // Churn
     if (churn) L2.push(churn);
