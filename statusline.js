@@ -150,7 +150,7 @@ function wcache(c) {
   wjson(CACHE, c);
 }
 
-// ---- opencode go usage -------------------------------------------------------
+// ---- opencode go usage (HTML scraping) --------------------------------------
 let _ocf = false;
 function getOCUsage(authCookie, wsId) {
   if (!authCookie || !wsId) return null;
@@ -160,14 +160,22 @@ function getOCUsage(authCookie, wsId) {
   _ocf = true;
   const cookie = authCookie.startsWith('auth=') ? authCookie : 'auth=' + authCookie;
   require('https').get({
-    hostname: 'console.opencode.ai', path: '/zen/go/v1/usage',
-    headers: { Cookie: cookie, Accept: 'application/json' }, timeout: 5000
+    hostname: 'opencode.ai', path: '/workspace/' + wsId + '/go',
+    headers: { Cookie: cookie, Accept: 'text/html', 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
   }, r => {
     let ck = []; r.on('data', d => ck.push(d)); r.on('end', () => {
       _ocf = false;
       try {
-        const u = JSON.parse(Buffer.concat(ck));
-        if (u && u.rolling) { const c2 = rcache(); c2.ocUsage = u; c2.ocUsageTs = Date.now(); c2._forceWrite = true; wcache(c2); }
+        const html = Buffer.concat(ck).toString();
+        const get = (w) => {
+          const m = html.match(new RegExp(w + 'Usage[^}]*?usagePercent:(\\d+)'));
+          const r = html.match(new RegExp(w + 'Usage[^}]*?resetInSec:(\\d+)'));
+          return m ? { status: 'ok', usagePercent: parseInt(m[1]), resetsInSeconds: parseInt(r?.[1] || '0') } : null;
+        };
+        const u = { rolling: get('rolling'), weekly: get('weekly'), monthly: get('monthly') };
+        if (u.rolling || u.weekly || u.monthly) {
+          const c2 = rcache(); c2.ocUsage = u; c2.ocUsageTs = Date.now(); c2._forceWrite = true; wcache(c2);
+        }
       } catch {}
     });
   }).on('error', () => { _ocf = false; }).end();
@@ -301,6 +309,9 @@ process.stdin.on('end', () => {
     let rem = 100;
     if (cw.remaining_percentage != null) rem = Math.round(cw.remaining_percentage);
     else if (cw.used_percentage != null) rem = Math.round(100 - cw.used_percentage);
+    else if (cw.total_input_tokens && cw.context_window_size) {
+      rem = Math.round(100 - (cw.total_input_tokens / cw.context_window_size * 100));
+    }
 
     // ── tokens ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
@@ -346,7 +357,7 @@ process.stdin.on('end', () => {
     const turns = s.turns || 0;
 
     // ── balance / usage (provider-aware) ─────────────────────────────────────
-    let bal = '', balText = '';
+    let bal = '', balText = '', line3 = '';
     if (isDeepSeek) {
       bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
       const balAge = Date.now() - (rcache().balanceTs || 0);
@@ -363,9 +374,11 @@ process.stdin.on('end', () => {
           const lbl = { rolling: '5h', weekly: 'wk', monthly: 'mo' }[w] || w;
           const pct = win.usagePercent;
           const clr = pct > 80 ? C.warn : pct > 50 ? C.cost : C.muted;
-          parts.push(S(clr, lbl + ' ' + pct + '%'));
+          const barTxt = bar(100 - pct);
+          const [r, g, b] = barGrad(100 - pct);
+          parts.push(S(clr, lbl + ' ' + rgb(r, g, b, pad(pct, 2) + '%')));
         }
-        if (parts.length) balText = parts.join(' ');
+        if (parts.length) line3 = parts.join(' ' + S(C.sep, '│') + ' ');
       }
     }
 
@@ -557,7 +570,7 @@ process.stdin.on('end', () => {
       if (vlen(line2) > col) line2 = visTrunc(line2, col);
     }
 
-    process.stdout.write('\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n');
+    process.stdout.write('\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n' + (line3 ? '\r\x1b[K' + line3 + '\n' : ''));
   } catch (e) {
     // silent
   }
