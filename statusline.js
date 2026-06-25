@@ -23,7 +23,6 @@ const NC = !!process.env.NO_COLOR || !!process.env.CLAUDE_CODE_NO_COLOR;
 function detectProvider(env) {
   const base = (env.ANTHROPIC_BASE_URL || '').toLowerCase();
   if (base.includes('api.deepseek.com')) return 'deepseek';
-  if (base.includes('opencode.ai') || env.OPENCODE_GO_AUTH_COOKIE) return 'opencode';
   return 'anthropic';
 }
 
@@ -362,7 +361,10 @@ process.stdin.on('end', () => {
       bal = getBal(env.ANTHROPIC_AUTH_TOKEN || '');
       const balAge = Date.now() - (rcache().balanceTs || 0);
       balText = balAge > BAL_STALE ? bal + S(C.muted, '~') : bal;
-    } else if (provider === 'opencode') {
+    }
+
+    // opencode go subscription usage (opt-in via OPENCODE_GO_ENABLED=true)
+    if (env.OPENCODE_GO_ENABLED === 'true') {
       const ocAuth = env.OPENCODE_GO_AUTH_COOKIE || '';
       const ocWsid = env.OPENCODE_GO_WORKSPACE_ID || '';
       const usage = getOCUsage(ocAuth, ocWsid);
@@ -372,13 +374,16 @@ process.stdin.on('end', () => {
           const win = usage[w];
           if (!win || win.status !== 'ok') continue;
           const lbl = { rolling: '5h', weekly: 'wk', monthly: 'mo' }[w] || w;
-          const pct = win.usagePercent;
-          const clr = pct > 80 ? C.warn : pct > 50 ? C.cost : C.muted;
-          const barTxt = bar(100 - pct);
+          const pct = Math.min(100, Math.max(0, win.usagePercent));
+          // 4-seg mini bar: ░░░░ style
+          const filled = Math.round(pct / 25);
+          const empty = 4 - filled;
           const [r, g, b] = barGrad(100 - pct);
-          parts.push(S(clr, lbl + ' ' + rgb(r, g, b, pad(pct, 2) + '%')));
+          const barStr = rgb(r, g, b, '█'.repeat(filled)) + S('38;5;237', '░'.repeat(empty));
+          const pctStr = rgb(r, g, b, pad(pct, 2) + '%');
+          parts.push(S(C.muted, lbl + ' ') + barStr + ' ' + pctStr);
         }
-        if (parts.length) line3 = parts.join(' ' + S(C.sep, '│') + ' ');
+        if (parts.length) line3 = parts.join(S(C.sep, ' ') + S(C.sep, ' '));
       }
     }
 
