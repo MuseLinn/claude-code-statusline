@@ -40,7 +40,7 @@ main │ ~ │ Opus → mimo-v2.5 ⚡high │ 14:32 │ 1h23m
 ```bash
 claude plugin marketplace add MuseLinn/muselinn-garage
 claude plugin install claude-code-statusline@muselinn-garage
-/deepseek-statusline:setup
+/claude-code-statusline:setup
 ```
 
 Restart Claude Code.
