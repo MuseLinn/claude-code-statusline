@@ -13,6 +13,7 @@ const { execSync } = require('child_process');
 const HOME = os.homedir();
 const CFG = path.join(HOME, '.claude', 'settings.json');
 const CACHE = path.join(HOME, '.claude', 'deepseek-cache.json');
+const SLCFG = path.join(HOME, '.claude', 'statusline-config.json');
 const BAL_TTL  = 10 * 1000;       // balance API throttle (ms)
 const BAL_STALE = 20 * 1000;      // show ~ indicator after this age (ms)
 const GIT_TTL = 3 * 1000;
@@ -206,7 +207,16 @@ function getBal(apiKey) {
 
 // ---- settings (once) ---------------------------------------------------------
 let _st = undefined;
-function sets() { return _st !== undefined ? _st : (_st = rjson(CFG) || {}); }
+function sets() {
+  if (_st !== undefined) return _st;
+  _st = rjson(CFG) || {};
+  // Merge statusline-config.json (persists across /model switches)
+  const slc = rjson(SLCFG);
+  if (slc) {
+    _st.env = { ...(_st.env || {}), ...slc };
+  }
+  return _st;
+}
 
 // ---- git ---------------------------------------------------------------------
 let _gt = { ts: 0, data: null };
