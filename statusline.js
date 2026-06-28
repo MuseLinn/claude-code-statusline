@@ -316,14 +316,18 @@ process.stdin.on('end', () => {
     // ── context (used %) ───────────────────────────────────────────────────
     // Primary: used_percentage from API. Fallback: total_input_tokens/window_size.
     // Null when no API response yet — show empty state instead of 100%.
+    // Cache last valid pct in sessions JSON to suppress transient 0% blips
+    // (occurs during context compression or model switches).
     let usedPct = null;
-    if (cw.used_percentage != null) usedPct = Math.round(cw.used_percentage);
+    const ctxTokens = cw.total_input_tokens || 0;
+    const ctxMax = cw.context_window_size || 0;
+    if (cw.used_percentage != null && cw.used_percentage >= 0) usedPct = Math.round(cw.used_percentage);
     else if (cw.remaining_percentage != null) usedPct = Math.round(100 - cw.remaining_percentage);
     else if (cw.total_input_tokens && cw.context_window_size && cw.context_window_size > 0) {
       usedPct = Math.round(cw.total_input_tokens / cw.context_window_size * 100);
     }
-    const ctxTokens = cw.total_input_tokens || 0;
-    const ctxMax = cw.context_window_size || 0;
+    // Guard: if API briefly reset to 0 but we know better from cache, keep the cached value.
+    if (usedPct === 0 && s.ctxPct > 0 && ctxMax > 0) usedPct = s.ctxPct;
 
     // ── tokens ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
@@ -358,6 +362,8 @@ process.stdin.on('end', () => {
       s.out = po + d; s.paid = (s.paid || 0) + (d * p.o) / 1e6;
     }
     s._lastIn = ti; s._lastOut = to; s._lastCache = tc; s.ts = Date.now();
+    // Persist last valid context percentage to suppress transient 0% on next poll
+    if (usedPct !== null && usedPct > 0 && ctxMax > 0) s.ctxPct = usedPct;
     cache.sessions[sid] = s;
     const wk = 7 * 864e5;
     for (const k in cache.sessions) if (Object.hasOwn(cache.sessions, k) && Date.now() - (cache.sessions[k].ts || 0) > wk) delete cache.sessions[k];
