@@ -16,7 +16,6 @@ main 1M1A │ ~/project │ Sonnet → deepseek-v4-flash ⚡high │ 14:32
 |---|---|---|---|
 | Context bar (Pac-Man eating beans) | ✅ | ✅ | ✅ |
 | Token counts (in/out) | ✅ | ✅ | ✅ |
-| >200k token warning | ✅ | ✅ | ✅ |
 | Cache hit % | ✅ | — | — |
 | Cost tracking (¥) | ✅ | — | — |
 | Balance (DeepSeek API) | ✅ | — | — |

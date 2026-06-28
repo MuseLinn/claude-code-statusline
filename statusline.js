@@ -336,7 +336,6 @@ process.stdin.on('end', () => {
     }
     // Guard: if API briefly reset to 0 but we know better from cache, keep the cached value.
     if (usedPct === 0 && s.ctxPct > 0 && ctxMax > 0) usedPct = s.ctxPct;
-    const exceeds200k = !!I.exceeds_200k_tokens;
 
     // ── tokens ──
 
@@ -571,7 +570,6 @@ process.stdin.on('end', () => {
         return rgb(r, g, b, pad(usedPct, 3) + '%');
       })();
       ctxWarn = usedPct >= 85 ? S(C.warn, ' ⚠') : '';
-      if (exceeds200k) ctxWarn += S(C.warn, ' 200k') + (usedPct < 85 ? ' ⚠' : '');
     } else {
       prog = S('38;5;240', '▐') + bar(0) + S('38;5;240', '▌') + S('38;5;243', ' ...');
     }
