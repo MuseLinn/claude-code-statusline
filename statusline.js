@@ -592,10 +592,10 @@ process.stdin.on('end', () => {
     if (isDeepSeek) L2.push(S(C.cost, '¥' + fcny(turnCost)));
 
     // Turns
-    if (turns > 0) L2.push(S('38;5;144', turns + ' turns'));
+    if (turns > 0) L2.push(S(C.clock, turns + ' turns'));
 
     // Total (DeepSeek only)
-    if (isDeepSeek && sessCost > 0.001) L2.push(S('38;5;180', 'Total ¥' + fcny(sessCost)));
+    if (isDeepSeek && sessCost > 0.001) L2.push(S(C.tCch, 'Total ¥' + fcny(sessCost)));
 
     // Churn
     if (churn) L2.push(churn);
@@ -608,8 +608,41 @@ process.stdin.on('end', () => {
       if (vlen(line2) > col) line2 = visTrunc(line2, col);
     }
 
-    process.stdout.write('\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n' + (line3 ? '\r\x1b[K' + line3 + '\n' : ''));
+    const output = '\r\x1b[K' + line1 + '\n\r\x1b[K' + line2 + '\n' + (line3 ? '\r\x1b[K' + line3 + '\n' : '');
+    process.stdout.write(output);
+    // Persist last successful output for fallback on next run
+    const _c = rcache(); _c._lastStatus = output; _c._forceWrite = true; wcache(_c);
   } catch (e) {
-    // silent
+    // Fallback: show minimal statusline so bar never goes blank
+    try {
+      const env = sets().env || {};
+      const git = getGit();
+      const now = new Date();
+      const fbc = pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2);
+      const fbGit = git.branch ? S(C.git, git.branch) + SEP : '';
+      const fbModel = R(C.bbg) + R(C.bag) + ' ' + (env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || '') + ' ' + Z;
+      const c2 = rcache();
+      if (c2._lastStatus) { process.stdout.write(c2._lastStatus); }
+      else { process.stdout.write('\r\x1b[K' + fbGit + S(C.clock, fbc) + SEP + fbModel + '\n\r\x1b[K\n'); }
+    } catch {}
   }
 });
+
+// Stdin guard: if no data within 5s, render fallback and exit
+const _stdinTimer = setTimeout(() => {
+  if (!buf) {
+    process.stdin.destroy();
+    try {
+      const env = sets().env || {};
+      const git = getGit();
+      const now = new Date();
+      const fbc = pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2);
+      const fbGit = git.branch ? S(C.git, git.branch) + ' │ ' : '';
+      const fbModel = R(C.bbg) + R(C.bag) + ' ' + (env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || '') + ' ' + Z;
+      const c3 = rcache();
+      if (c3._lastStatus) { process.stdout.write(c3._lastStatus); }
+      else { process.stdout.write('\r\x1b[K' + fbGit + S(C.clock, fbc) + ' │ ' + fbModel + '\n\r\x1b[K\n'); }
+    } catch {}
+  }
+}, 5000);
+process.stdin.on('data', () => clearTimeout(_stdinTimer));
