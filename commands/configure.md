@@ -19,14 +19,21 @@ Read `~/.claude/settings.json` → `env.ANTHROPIC_BASE_URL`:
 Based on their provider, ask ONLY what's relevant:
 
 ### If opencode go / local proxy:
-Ask for their `OPENCODE_GO_AUTH_COOKIE` and `OPENCODE_GO_WORKSPACE_ID`, then update `~/.claude/settings.json` → `env`:
+Ask for their `OPENCODE_GO_AUTH_COOKIE` and `OPENCODE_GO_WORKSPACE_ID`, then write to `~/.claude/statusline-config.json`:
 
-```json
-"OPENCODE_GO_AUTH_COOKIE": "<their cookie>",
-"OPENCODE_GO_WORKSPACE_ID": "<their workspace id>"
+```bash
+cat > ~/.claude/statusline-config.json << 'JSONEOF'
+{
+  "OPENCODE_GO_ENABLED": "true",
+  "OPENCODE_GO_AUTH_COOKIE": "<their auth cookie value>",
+  "OPENCODE_GO_WORKSPACE_ID": "<their workspace id>"
+}
+JSONEOF
 ```
 
-Explain how to get the cookie: visit https://opencode.ai, sign in, open browser DevTools → Application → Cookies → copy the `auth` value.
+Explain how to get the cookie: visit https://opencode.ai, sign in, open browser DevTools → Application → Cookies → copy the `auth` value (just the hex string, not the `auth=` prefix).
+
+**Why `statusline-config.json` instead of `settings.json`?** Claude Code's `/model` and `/plugin` commands rewrite `settings.json`, which would wipe out custom env vars. `statusline-config.json` is merged at runtime and survives CLI commands.
 
 ### If DeepSeek:
 Ask for their DeepSeek API key if not already set, then update `~/.claude/settings.json` → `env.ANTHROPIC_AUTH_TOKEN`.
@@ -36,7 +43,13 @@ No additional config needed — Claude Code's built-in `cost.total_cost_usd` and
 
 ## After updating config
 
-Tell the user to restart Claude Code for changes to take effect. Statusline features by provider:
+Tell the user to restart Claude Code for changes to take effect. If the third line (usage %) still doesn't show after restart, check:
+
+1. `~/.claude/statusline-config.json` has `OPENCODE_GO_ENABLED: "true"` (string, not boolean)
+2. The auth cookie hasn't expired — re-copy from browser DevTools
+3. The workspace ID is correct — it should start with `wrk_`
+
+Statusline features by provider:
 
 | Feature | DeepSeek | opencode go | Anthropic |
 |---------|----------|-------------|-----------|
