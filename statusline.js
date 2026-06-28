@@ -317,6 +317,10 @@ process.stdin.on('end', () => {
     let p = PRICE['deepseek-v4-flash'];
     for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
 
+    // ── session (needed early for ctxPct cache guard) ──
+    const cache = rcache();
+    let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
+
     // ── context (used %) ───────────────────────────────────────────────────
     // Primary: used_percentage from API. Fallback: total_input_tokens/window_size.
     // Null when no API response yet — show empty state instead of 100%.
@@ -333,13 +337,12 @@ process.stdin.on('end', () => {
     // Guard: if API briefly reset to 0 but we know better from cache, keep the cached value.
     if (usedPct === 0 && s.ctxPct > 0 && ctxMax > 0) usedPct = s.ctxPct;
 
-    // ── tokens ──────────────────────────────────────────────────────────────
+    // ── tokens ──
+
+    // ── session cost tracking ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
     const ti = cu.input_tokens || 0, tc = cu.cache_read_input_tokens || 0, to = cu.output_tokens || 0;
 
-    // ── session ─────────────────────────────────────────────────────────────
-    const cache = rcache();
-    let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
     if (s.paid === undefined && (s.in || s.cache || s.out)) {
       const ec = Math.min(s.cache, s.in); // clamp: cache can't exceed input (corrupted data)
       s.paid = ((s.in - ec) * p.i + ec * p.c + s.out * p.o) / 1e6;
@@ -613,36 +616,9 @@ process.stdin.on('end', () => {
     // Persist last successful output for fallback on next run
     const _c = rcache(); _c._lastStatus = output; _c._forceWrite = true; wcache(_c);
   } catch (e) {
-    // Fallback: show minimal statusline so bar never goes blank
-    try {
-      const env = sets().env || {};
-      const git = getGit();
-      const now = new Date();
-      const fbc = pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2);
-      const fbGit = git.branch ? S(C.git, git.branch) + SEP : '';
-      const fbModel = R(C.bbg) + R(C.bag) + ' ' + (env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || '') + ' ' + Z;
-      const c2 = rcache();
-      if (c2._lastStatus) { process.stdout.write(c2._lastStatus); }
-      else { process.stdout.write('\r\x1b[K' + fbGit + S(C.clock, fbc) + SEP + fbModel + '\n\r\x1b[K\n'); }
-    } catch {}
+    // Keep previous output on error — prevents blank flicker
+    const c2 = rcache();
+    if (c2._lastStatus) { process.stdout.write(c2._lastStatus); }
+    else { process.stdout.write('\r\x1b[K\n\r\x1b[K\n'); }
   }
 });
-
-// Stdin guard: if no data within 5s, render fallback and exit
-const _stdinTimer = setTimeout(() => {
-  if (!buf) {
-    process.stdin.destroy();
-    try {
-      const env = sets().env || {};
-      const git = getGit();
-      const now = new Date();
-      const fbc = pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2);
-      const fbGit = git.branch ? S(C.git, git.branch) + ' │ ' : '';
-      const fbModel = R(C.bbg) + R(C.bag) + ' ' + (env.ANTHROPIC_DEFAULT_SONNET_MODEL_NAME || env.ANTHROPIC_DEFAULT_OPUS_MODEL_NAME || '') + ' ' + Z;
-      const c3 = rcache();
-      if (c3._lastStatus) { process.stdout.write(c3._lastStatus); }
-      else { process.stdout.write('\r\x1b[K' + fbGit + S(C.clock, fbc) + ' │ ' + fbModel + '\n\r\x1b[K\n'); }
-    } catch {}
-  }
-}, 5000);
-process.stdin.on('data', () => clearTimeout(_stdinTimer));
