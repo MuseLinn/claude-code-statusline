@@ -249,10 +249,11 @@ function getGit() {
 }
 
 // ---- progress bar: 80-seg, TrueColor gradient --------------------------------
+// Color: 0% used = sage (safe), 100% used = rust (danger)
 function bar(pct) {
   const B = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
   const u = Math.round(pct * 0.8), full = u >> 3, part = u & 7;
-  const [r, g, b] = barGrad(pct);
+  const [r, g, b] = barGrad(100 - pct);
   let out = '';
   for (let i = 0; i < 10; i++) {
     if (i < full) out += rgb(r, g, b, '█');
