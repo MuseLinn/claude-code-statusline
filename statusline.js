@@ -248,18 +248,22 @@ function getGit() {
   }
 }
 
-// ---- progress bar: 80-seg, TrueColor gradient --------------------------------
-// Color: 0% used = sage (safe), 100% used = rust (danger)
+// ---- progress bar: Pac-Man eats beans ------------------------------------
+// Eaten: ● (gradient sage → rust), Pac-Man: ᗧ (yellow), Uneaten: · (dim)
+// At 100% all beans eaten, Pac-Man disappears
 function bar(pct) {
-  const B = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
-  const u = Math.round(pct * 0.8), full = u >> 3, part = u & 7;
   const [r, g, b] = barGrad(100 - pct);
-  let out = '';
-  for (let i = 0; i < 10; i++) {
-    if (i < full) out += rgb(r, g, b, '█');
-    else if (i === full && part) out += rgb(r, g, b, B[part]);
-    else out += S('38;5;237', '░');
+  if (pct >= 100) {
+    // All gone! Pac-Man finished
+    let out = '';
+    for (let i = 0; i < 10; i++) out += rgb(r, g, b, '●');
+    return out;
   }
+  const eaten = Math.min(9, Math.round(pct / 10));
+  let out = '';
+  for (let i = 0; i < eaten; i++) out += rgb(r, g, b, '●');
+  out += '\x1b[38;2;255;204;0mᗧ' + Z;
+  for (let i = eaten; i < 9; i++) out += S('38;5;237', '·');
   return out;
 }
 
