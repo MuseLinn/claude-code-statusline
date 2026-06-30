@@ -1,6 +1,6 @@
 {
   "name": "claude-code-statusline",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Multi-provider statusline for Claude Code — DeepSeek, opencode go, Anthropic. Context bar, cost, tokens, git porcelain.",
   "license": "MIT",
   "author": "",
