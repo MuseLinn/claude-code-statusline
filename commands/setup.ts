@@ -10,6 +10,7 @@ const HOME = homedir();
 const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || join(HOME, '.claude');
 const SETTINGS_FILE = join(CLAUDE_DIR, 'settings.local.json');
 const SCRIPT_TARGET = join(CLAUDE_DIR, 'statusline.js');
+const SUBAGENT_SCRIPT_TARGET = join(CLAUDE_DIR, 'subagent-statusline.js');
 
 function log(msg: string) {
   console.log(`\x1b[36m▶ claude-code-statusline\x1b[0m ${msg}`);
@@ -25,12 +26,16 @@ function warn(msg: string) {
 
 // ---- determine script source ----
 // In a plugin install, __dirname is /commands/; script is one level up
-let scriptSource = join(dirname(new URL(import.meta.url).pathname), '..', 'statusline.js');
+const scriptSource = join(dirname(new URL(import.meta.url).pathname), '..', 'statusline.js');
+const subagentScriptSource = join(dirname(new URL(import.meta.url).pathname), '..', 'subagent-statusline.js');
 if (!existsSync(scriptSource)) {
   // Fallback: maybe running from repo root
-  scriptSource = join(process.cwd(), 'statusline.js');
+  const fallback = join(process.cwd(), 'statusline.js');
+  scriptSource = existsSync(fallback) ? fallback : '';
+  const subFallback = join(process.cwd(), 'subagent-statusline.js');
+  subagentScriptSource = existsSync(subFallback) ? subFallback : '';
 }
-if (!existsSync(scriptSource)) {
+if (!scriptSource) {
   warn('statusline.js not found next to the setup command.');
   log('Please ensure statusline.js is in the same directory as commands/.');
   process.exit(1);
@@ -84,6 +89,20 @@ config.statusLine = {
 writeFileSync(SETTINGS_FILE, JSON.stringify(config, null, 2) + '\n', 'utf8');
 success(`statusLine added to ${SETTINGS_FILE}`);
 
+// ---- subagent-statusline ----
+if (subagentScriptSource && existsSync(subagentScriptSource)) {
+  copyFileSync(subagentScriptSource, SUBAGENT_SCRIPT_TARGET);
+  success(`subagent-statusline.js installed to ${SUBAGENT_SCRIPT_TARGET}`);
+  config.subagentStatusLine = {
+    type: 'command',
+    command: command.replace('statusline.js', 'subagent-statusline.js'),
+  };
+  writeFileSync(SETTINGS_FILE, JSON.stringify(config, null, 2) + '\n', 'utf8');
+  success(`subagentStatusLine added to ${SETTINGS_FILE}`);
+} else {
+  log('subagent-statusline.js not found, skipping agent panel customization.');
+}
+
 // ---- done ----
 console.log('');
 log('✨ Setup complete!');
@@ -92,6 +111,9 @@ console.log('');
 log('The statusline shows:');
 log('  Line 1: git branch . repo link . project dir . model/agent . balance . clock');
 log('  Line 2: context bar [200K] . tokens (cache) . turn cost . total . code churn');
+if (subagentScriptSource && existsSync(subagentScriptSource)) {
+  log('  Agent panel: agent rows with type badge, status, time, tokens');
+}
 console.log('');
 log('New in v0.5.0: clickable repo link, session name, agent name, thinking indicator');
 console.log('');

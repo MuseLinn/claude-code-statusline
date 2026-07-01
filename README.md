@@ -105,6 +105,28 @@ Get the cookie: visit https://opencode.ai, sign in, DevTools → Application →
 
 No additional config needed.
 
+## Agent panel (subagent status line)
+
+The plugin also includes a `subagent-statusline.js` for the [agent panel](https://code.claude.com/docs/en/statusline#subagent-status-lines). It replaces the default agent row with a formatted badge showing agent type, status, elapsed time, and token count.
+
+```
+[Explore] Search codebase for API patterns   ▶ 5.2K tok
+[Plan]    Design architecture                ✓ 12.4K tok
+```
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "subagentStatusLine": {
+    "type": "command",
+    "command": "\"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Users\\<username>\\.claude\\subagent-statusline.js\""
+  }
+}
+```
+
+The setup command (`/claude-code-statusline:setup`) installs this automatically.
+
 ## How it works
 
 1. Claude Code pipes session JSON to the script via stdin (refreshInterval: 10s)

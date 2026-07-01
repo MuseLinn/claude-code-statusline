@@ -61,3 +61,6 @@ Statusline features by provider:
 | Usage % (5h/wk/mo) | ❌ | ✅ (API) | ❌ |
 | Model tier badge | ✅ | ✅ | ✅ |
 | Git / dir / PR | ✅ | ✅ | ✅ |
+| Agent panel rows | ✅ | ✅ | ✅ |
+
+The `subagent-statusline.js` script is installed automatically by `/claude-code-statusline:setup` and configures the [subagentStatusLine](https://code.claude.com/docs/en/statusline#subagent-status-lines) setting. If the agent panel rows still show default text, check that `~/.claude/settings.json` contains a `subagentStatusLine` block.

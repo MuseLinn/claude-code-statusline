@@ -1,6 +1,6 @@
 {
   "name": "claude-code-statusline",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Multi-provider statusline for Claude Code — DeepSeek ¥ tracking, opencode go subscription usage, Anthropic context bar. TrueColor gradient, git porcelain, code churn.",
   "author": {
     "name": "MuseLinn",
