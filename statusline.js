@@ -225,11 +225,26 @@ function getGit() {
   if (_gt.data && n - _gt.ts < GIT_TTL) return _gt.data;
   try {
     const cwd = process.cwd();
-    const gf = path.join(cwd, '.git', 'HEAD');
-    if (!fs.existsSync(gf)) return _gt = { ts: n, data: { branch: '', st: {} } }, _gt.data;
-    const head = fs.readFileSync(gf, 'utf8').trim();
-    const branch = head.startsWith('ref: refs/heads/') ? head.slice(16) : head.slice(0, 12);
-    const raw = execSync('git status --porcelain', { encoding: 'utf8', timeout: 2000 });
+    // Support git worktrees where .git is a file (not a directory)
+    const gitPath = path.join(cwd, '.git');
+    let headContent;
+    if (!fs.existsSync(gitPath)) {
+      return _gt = { ts: n, data: { branch: '', st: {} } }, _gt.data;
+    }
+    if (fs.statSync(gitPath).isFile()) {
+      // Worktree: .git is a file containing "gitdir: /path/to/.git/worktrees/name"
+      // The worktree-specific HEAD is at that path
+      const gitdir = fs.readFileSync(gitPath, 'utf8').trim().replace(/^gitdir:\s*/, '');
+      const headFile = path.join(gitdir, 'HEAD');
+      headContent = fs.existsSync(headFile) ? fs.readFileSync(headFile, 'utf8').trim() : '';
+    } else {
+      // Normal repo: .git is a directory
+      const headFile = path.join(gitPath, 'HEAD');
+      headContent = fs.existsSync(headFile) ? fs.readFileSync(headFile, 'utf8').trim() : '';
+    }
+    const branch = headContent.startsWith('ref: refs/heads/')
+      ? headContent.slice(16) : headContent.slice(0, 12);
+    const raw = execSync('git status --porcelain', { encoding: 'utf8', timeout: 2000, cwd });
     const st = { M: 0, A: 0, D: 0, R: 0, U: 0 };
     if (raw.trim()) {
       for (const l of raw.trim().split('\n')) {
@@ -254,7 +269,6 @@ function getGit() {
 function bar(pct) {
   const [r, g, b] = barGrad(100 - pct);
   if (pct >= 100) {
-    // All gone! Pac-Man finished
     let out = '';
     for (let i = 0; i < 10; i++) out += rgb(r, g, b, '●');
     return out;
@@ -275,7 +289,7 @@ process.stdin.on('data', c => buf += c);
 process.stdin.on('end', () => {
   try {
     const I = JSON.parse(buf);
-    const model = I.model?.display_name || '';
+const model = I.model?.display_name || '';
     const mid = I.model?.id || '';
     const sid = I.session_id || 'default';
     const cw = I.context_window || {};
@@ -317,7 +331,6 @@ process.stdin.on('end', () => {
     let p = PRICE['deepseek-v4-flash'];
     for (const k in PRICE) if (Object.hasOwn(PRICE, k) && (mid.includes(k) || model.toLowerCase().includes(k))) { p = PRICE[k]; break; }
 
-    // ── session (needed early for ctxPct cache guard) ──
     const cache = rcache();
     let s = cache.sessions[sid] || { in: 0, out: 0, cache: 0 };
 
@@ -337,9 +350,7 @@ process.stdin.on('end', () => {
     // Guard: if API briefly reset to 0 but we know better from cache, keep the cached value.
     if (usedPct === 0 && s.ctxPct > 0 && ctxMax > 0) usedPct = s.ctxPct;
 
-    // ── tokens ──
-
-    // ── session cost tracking ──────────────────────────────────────────────────────────────
+    // ── tokens ──────────────────────────────────────────────────────────────
     const cu = cw.current_usage || {};
     const ti = cu.input_tokens || 0, tc = cu.cache_read_input_tokens || 0, to = cu.output_tokens || 0;
 
@@ -621,4 +632,5 @@ process.stdin.on('end', () => {
     if (c2._lastStatus) { process.stdout.write(c2._lastStatus); }
     else { process.stdout.write('\r\x1b[K\n\r\x1b[K\n'); }
   }
+
 });
